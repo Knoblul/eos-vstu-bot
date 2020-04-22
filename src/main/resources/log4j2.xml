@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration xmlns:xi="http://www.w3.org/2001/XInclude" packages="knoblul.eosvstubot" status="WARN">
+	<Appenders>
+        <Console name="ConsoleOut" target="SYSTEM_OUT">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger]: %msg%n" />
+			<LevelRangeFilter minLevel="INFO" maxLevel="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+        </Console>
+		<Console name="ConsoleErr" target="SYSTEM_ERR">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger]: %msg%n" />
+			<ThresholdFilter level="WARN" />
+        </Console>
+		<TextPaneAppender name="TextPaneAppender">
+			<PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger]: %msg%n" />
+		</TextPaneAppender>
+    </Appenders>
+    <Loggers>
+        <Root level="ALL">
+            <AppenderRef ref="ConsoleOut" />
+			<AppenderRef ref="ConsoleErr" />
+			<AppenderRef ref="TextPaneAppender" />
+        </Root>
+    </Loggers>
+</Configuration>
