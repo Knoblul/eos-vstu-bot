@@ -15,6 +15,7 @@ package knoblul.eosvstubot.frontend.login;
 
 import knoblul.eosvstubot.backend.login.LoginHolder;
 import knoblul.eosvstubot.backend.login.LoginManager;
+import knoblul.eosvstubot.frontend.BotUI;
 import knoblul.eosvstubot.frontend.misc.DialogUtils;
 
 import javax.swing.*;
@@ -86,7 +87,7 @@ public class LoginHolderEditDialog extends JComponent {
 
 		String title = editingHolder == null ? "Создать пользователя" : "Изменить данные пользователя";
 		while (true) {
-			if (JOptionPane.showConfirmDialog(this, this, title,
+			if (JOptionPane.showConfirmDialog(BotUI.instance, this, title,
 					JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
 				return false;
 			}
@@ -123,6 +124,8 @@ public class LoginHolderEditDialog extends JComponent {
 					} catch (IOException e) {
 						DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.", e);
 					}
+				} else {
+					holder.save();
 				}
 
 				return true;

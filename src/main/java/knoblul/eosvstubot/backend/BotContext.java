@@ -178,14 +178,6 @@ public class BotContext {
 	}
 
 	/**
-	 * Возвращает все куки, которые хранит данный контекст.
-	 */
-	public List<Cookie> getCookies() {
-		check();
-		return cookieStore.getCookies();
-	}
-
-	/**
 	 * Очищает все куки из данного контекста
 	 */
 	public void clearCookies() {
@@ -193,22 +185,34 @@ public class BotContext {
 		cookieStore.clear();
 	}
 
-//	/**
-//	 * Получает куки по имени из тех, что хранит данный контекст
-//	 * @param name имя куки
-//	 * @return найденный куки или <code>null</code>
-//	 */
-//	@Nullable
-//	public Cookie getCookie(@NotNull String name) {
-//		check();
-//
-//		for (Cookie cookie: cookieStore.getCookies()) {
-//			if (cookie.getName().equals(name)) {
-//				return cookie;
-//			}
-//		}
-//		return null;
-//	}
+	/**
+	 * Получает куки по имени из тех, что хранит данный контекст
+	 * @param name имя куки
+	 * @return найденный куки или <code>null</code>
+	 */
+	@Nullable
+	public Cookie getCookie(@NotNull String name) {
+		check();
+
+		for (Cookie cookie: cookieStore.getCookies()) {
+			if (cookie.getName().equals(name)) {
+				return cookie;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Получает згачегие куки по имени из тех, что хранит данный контекст
+	 * @param name имя куки
+	 * @return значение куки или <code>null</code>
+	 */
+	@Nullable
+	public String getCookieValue(@NotNull String name) {
+		check();
+		Cookie cookie = getCookie(name);
+		return cookie != null ? cookie.getValue() : null;
+	}
 
 	/**
 	 * Добавляет куки в хранение у контекста. Куки заменяется новым, если

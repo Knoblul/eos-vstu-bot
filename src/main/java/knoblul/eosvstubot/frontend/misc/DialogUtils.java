@@ -14,6 +14,7 @@
 package knoblul.eosvstubot.frontend.misc;
 
 import com.google.common.base.Throwables;
+import knoblul.eosvstubot.frontend.BotUI;
 import knoblul.eosvstubot.utils.Log;
 
 import javax.swing.*;
@@ -26,13 +27,13 @@ import java.awt.*;
  */
 public class DialogUtils {
 	public static void showWarning(String message) {
-		JOptionPane.showMessageDialog(null, message, "Внимание", JOptionPane.WARNING_MESSAGE);
+		JOptionPane.showMessageDialog(BotUI.instance, message, "Внимание", JOptionPane.WARNING_MESSAGE);
 	}
 
 	public static void showError(String message, Throwable t) {
 		Log.error(t, message);
 
-		JDialog dialog = new JDialog((Frame) null, "Ошибка", true);
+		JDialog dialog = new JDialog(BotUI.instance, "Ошибка", true);
 		dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
 		dialog.setLayout(new GridBagLayout());
 

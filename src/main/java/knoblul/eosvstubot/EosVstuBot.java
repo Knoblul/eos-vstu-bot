@@ -14,11 +14,8 @@
 package knoblul.eosvstubot;
 
 import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.backend.login.LoginHolder;
 import knoblul.eosvstubot.frontend.BotUI;
 import knoblul.eosvstubot.utils.Log;
-
-import java.io.IOException;
 
 /**
  * <br><br>Module: eos-vstu-bot
@@ -40,5 +37,41 @@ public class EosVstuBot {
 		} finally {
 			context.destroy();
 		}
+
+//		SimpleDateFormat sdf = new SimpleDateFormat("E HH:mm:ss", Locale.ENGLISH);
+
+//		Calendar scheduleTime = Calendar.getInstance();
+//		scheduleTime.setTime(new Date(0));
+//		scheduleTime.set(Calendar.DAY_OF_WEEK, Calendar.WEDNESDAY);
+//		scheduleTime.set(Calendar.HOUR, 16);
+//		scheduleTime.set(Calendar.MINUTE, 45);
+//		scheduleTime.set(Calendar.SECOND, 0);
+//		int scheduleWeekIndex = 0;
+//
+//		while (true) {
+//			try {
+//				Calendar calendar = Calendar.getInstance();
+//
+//				Calendar scheduleCalendar = Calendar.getInstance();
+//				scheduleCalendar.set(Calendar.DAY_OF_WEEK, scheduleTime.get(Calendar.DAY_OF_WEEK));
+//				scheduleCalendar.set(Calendar.HOUR, scheduleTime.get(Calendar.HOUR));
+//				scheduleCalendar.set(Calendar.MINUTE, scheduleTime.get(Calendar.MINUTE));
+//				scheduleCalendar.set(Calendar.SECOND, scheduleTime.get(Calendar.SECOND));
+//
+//				int currentWeekIndex = calendar.get(Calendar.WEEK_OF_YEAR) % 2;
+//				if (currentWeekIndex != scheduleWeekIndex || calendar.after(scheduleCalendar)) {
+//					// переносим на некст неделю
+//					scheduleCalendar.add(Calendar.WEEK_OF_MONTH, 1);
+//				}
+//
+//				long remainingTime = scheduleCalendar.getTimeInMillis() - calendar.getTimeInMillis();
+//				Log.info("Remaining: %d:%02d:%02d:%02d", TimeUnit.MILLISECONDS.toDays(remainingTime),
+//						TimeUnit.MILLISECONDS.toHours(remainingTime)%24, TimeUnit.MILLISECONDS.toMinutes(remainingTime)%60,
+//						TimeUnit.MILLISECONDS.toSeconds(remainingTime)%60);
+//				Thread.sleep(500);
+//			} catch (InterruptedException e) {
+//				break;
+//			}
+//		}
 	}
 }

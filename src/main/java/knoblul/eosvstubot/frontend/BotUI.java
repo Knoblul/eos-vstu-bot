@@ -30,9 +30,11 @@ import java.awt.event.WindowEvent;
  * @author Knoblul
  */
 public class BotUI extends JFrame {
+	public static BotUI instance;
 	private final BotContext context;
 
 	public BotUI(BotContext context) {
+		instance = this;
 		this.context = context;
 
 		try {

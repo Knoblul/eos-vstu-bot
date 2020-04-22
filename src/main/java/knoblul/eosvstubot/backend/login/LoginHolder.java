@@ -20,16 +20,17 @@ import com.google.common.collect.Maps;
 import knoblul.eosvstubot.EosVstuBot;
 import knoblul.eosvstubot.backend.BotContext;
 import knoblul.eosvstubot.utils.Log;
+import knoblul.eosvstubot.utils.PropertiesHelper;
+import knoblul.eosvstubot.utils.PropertyField;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.cookie.Cookie;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -50,11 +51,6 @@ public class LoginHolder {
 
 	private static final String COOKIE_MID_NAME = "MOODLEID1_";
 	private static final String COOKIE_SESSION_NAME = "MoodleSession";
-	private static final String P_PROFILE_NAME = "ProfileName";
-	private static final String P_PROFILE_LINK = "ProfileLink";
-	private static final String P_USERNAME = "Username";
-	private static final String P_PASSWORD = "Password";
-	private static final String P_CHAT_PHRASES = "ChatPhrases";
 
 	/**
 	 * Менеджер логинов, который хранит в себе экземпляр
@@ -76,16 +72,35 @@ public class LoginHolder {
 	/**
 	 * Логин профиля eos.vstu.ru
 	 */
+	@PropertyField
 	private String username;
 
 	/**
 	 * Пароль профиля eos.vstu.ru
 	 */
+	@PropertyField
 	private String password;
+
+	/**
+	 * Имя профиля eos.vstu.ru
+	 */
+	private String profileName;
+
+	/**
+	 * Ссылка профиля eos.vstu.ru
+	 */
+	private String profileLink;
+
+	/**
+	 * Куки сессии eos.vstu.ru
+	 */
+	@PropertyField(readMethodName = "readCookies", writeMethodName = "writeCookies")
+	private String[] cookies = new String[2];
 
 	/**
 	 * Фразы, которые бот должен говорить в чате от лица этого профиля.
 	 */
+	@PropertyField(readMethodName = "setChatPhrasesFromString", writeMethodName = "getChatPhrasesAsString")
 	private List<String> chatPhrases;
 
 	/**
@@ -99,7 +114,6 @@ public class LoginHolder {
 		this.properties = new Properties();
 		this.propertiesFile = propertiesFile;
 		this.chatPhrases = Lists.newArrayList(DEFAULT_CHAT_PHRASES);
-		this.username = this.password = "";
 		load();
 	}
 
@@ -111,29 +125,16 @@ public class LoginHolder {
 		return password;
 	}
 
-	/**
-	 * @return имя профиля eos.vstu.ru
-	 */
 	public String getProfileName() {
-		return properties.getProperty("ProfileName", "");
+		return profileName;
 	}
 
-	/**
-	 * @return ссылку на профиль eos.vstu.ru
-	 */
 	public String getProfileLink() {
-		return properties.getProperty("ProfileLink", "");
+		return profileLink;
 	}
 
 	public List<String> getChatPhrases() {
 		return chatPhrases;
-	}
-
-	/**
-	 * @return <code>true</code>, если сессия на момент вызова метода действительна.
-	 */
-	public boolean isValid() {
-		return valid;
 	}
 
 	/**
@@ -167,14 +168,12 @@ public class LoginHolder {
 	/**
 	 * Десериализует себя из файла
 	 */
-	private void load() {
+	public void load() {
 		properties.clear();
 		if (Files.exists(propertiesFile)) {
 			try (BufferedReader reader = Files.newBufferedReader(propertiesFile)) {
 				properties.load(reader);
-				username = properties.getProperty(P_USERNAME, "");
-				password = properties.getProperty(P_PASSWORD, "");
-				setChatPhrasesFromString(properties.getProperty(P_CHAT_PHRASES, DEFAULT_CHAT_PHRASES));
+				PropertiesHelper.load(LoginHolder.class, this, properties);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -184,15 +183,48 @@ public class LoginHolder {
 	/**
 	 * Серализует себя в файл
 	 */
-	private void save() {
+	public void save() {
 		try (BufferedWriter writer = Files.newBufferedWriter(propertiesFile)) {
-			properties.setProperty(P_USERNAME, username);
-			properties.setProperty(P_PASSWORD, password);
-			properties.setProperty(P_CHAT_PHRASES, getChatPhrasesAsString());
+			PropertiesHelper.save(LoginHolder.class, this, properties);
 			properties.store(writer, EosVstuBot.NAME + " Login File");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	@SuppressWarnings("unused")
+	private void readCookies(String value) {
+		if (value.isEmpty()) {
+			cookies = new String[2];
+			return;
+		}
+
+		try {
+			ByteArrayInputStream in = new ByteArrayInputStream(Hex.decodeHex(value));
+			cookies = (String[]) new ObjectInputStream(in).readObject();
+		} catch (IOException | ClassNotFoundException | DecoderException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@NotNull
+	@SuppressWarnings("unused")
+	private String writeCookies() {
+		try {
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			new ObjectOutputStream(out).writeObject(cookies);
+			return new String(Hex.encodeHex(out.toByteArray()));
+		} catch (IOException e) {
+			e.printStackTrace();
+			return "";
+		}
+	}
+
+	/**
+	 * @return <code>true</code>, если сессия на момент вызова метода действительна.
+	 */
+	public boolean isValid() {
+		return valid;
 	}
 
 	/**
@@ -203,38 +235,34 @@ public class LoginHolder {
 	public void select() {
 		BotContext context = manager.getContext();
 		context.clearCookies();
-		context.setCookie(COOKIE_MID_NAME, properties.getProperty(COOKIE_MID_NAME), "eos.vstu.ru", "/");
-		context.setCookie(COOKIE_SESSION_NAME, properties.getProperty(COOKIE_SESSION_NAME), "eos.vstu.ru", "/");
+		context.setCookie(COOKIE_MID_NAME, cookies[0], "eos.vstu.ru", "/");
+		context.setCookie(COOKIE_SESSION_NAME, cookies[1], "eos.vstu.ru", "/");
 	}
 
 	/**
 	 * Парсит данные профиля с главной страницы. Проверяет залогинен ли пользователь.
-	 * Если залогинен, то парсит и устанавливает настоящее имя пользователя и ссылку на профиль в
-	 * {@link #P_PROFILE_NAME} и {@link #P_PROFILE_LINK} у {@link #properties}
+	 * Если залогинен, то парсит и устанавливает настоящее имя пользователя и ссылку на профиль.
 	 * @param index страница главной
 	 * @throws IOException если произошла неизвестная ошибка, например
 	 * код index-страницы был изменен и парсинг невозможен.
 	 */
 	private void parseProfile(@NotNull Document index) throws IOException {
-		Elements usermenu = index.select(".navbar .navbar-inner .container-fluid .usermenu");
-		if (!usermenu.select(".login").isEmpty()) {
+		Elements userMenu = index.select(".navbar .navbar-inner .container-fluid .usermenu");
+		if (!userMenu.select(".login").isEmpty()) {
 			throw new IOException("Invalid login");
 		} else {
-			Elements profileNameElement = usermenu.select(".menubar li a .userbutton .usertext");
+			Elements profileNameElement = userMenu.select(".menubar li a .userbutton .usertext");
 			if (profileNameElement.isEmpty()) {
 				throw new IOException("Something went wrong - failed to parse profile name");
 			}
 
-			Elements profileLinkElement = usermenu.select(".menu li [aria-labelledby=actionmenuaction-2]");
+			Elements profileLinkElement = userMenu.select(".menu li [aria-labelledby=actionmenuaction-2]");
 			if (profileLinkElement.isEmpty()) {
 				throw new IOException("Something went wrong - failed to parse profile link");
 			}
 
-			String profileName = profileNameElement.first().text();
-			properties.setProperty(P_PROFILE_NAME, profileName);
-
-			String profileLink = profileLinkElement.first().attr("href");
-			properties.setProperty(P_PROFILE_LINK, profileLink);
+			profileName = profileNameElement.first().text();
+			profileLink = profileLinkElement.first().attr("href");
 		}
 	}
 
@@ -248,6 +276,9 @@ public class LoginHolder {
 		try {
 			Files.deleteIfExists(propertiesFile);
 		} catch (IOException ignored) { }
+		profileName = null;
+		profileLink = null;
+		cookies = new String[2];
 	}
 
 	/**
@@ -261,17 +292,17 @@ public class LoginHolder {
 			HttpGet request = context.buildGetRequest(EosVstuBot.SITE + "/index.php", null);
 			Document document = context.executeRequestAndParseResponse(request);
 			parseProfile(document);
-			Log.info("%s check success", this);
+			Log.info("%s check success", username);
 			valid = true;
 		} catch (IOException e) {
 			// фоллбек стратегия - логинемся на сайте заново.
-			Log.error(e.getMessage().equalsIgnoreCase("Invalid login") ? null : e,
-					"%s check failed. Logging in...", this);
+			Log.warn(e.getMessage().equalsIgnoreCase("Invalid login") ? null : e,
+					"%s check failed. Logging in...", username);
 			try {
 				login();
 				valid = true;
 			} catch (IOException x) {
-				Log.error(x,"%s login failed. Holder is invalid.", this);
+				Log.error(x,"%s login failed. Holder is invalid.", username);
 				valid = false;
 			}
 		}
@@ -316,14 +347,11 @@ public class LoginHolder {
 
 			parseProfile(document);
 
-			for (Cookie cookie : context.getCookies()) {
-				String cookieName = cookie.getName();
-				if (cookieName.equals(COOKIE_MID_NAME) || cookieName.equals(COOKIE_SESSION_NAME)) {
-					properties.setProperty(cookieName, cookie.getValue());
-				}
-			}
+			// сохраняем значение сессионных куки, которые возвратил сайт
+			cookies[0] = context.getCookieValue(COOKIE_MID_NAME);
+			cookies[1] = context.getCookieValue(COOKIE_SESSION_NAME);
 
-			Log.info("%s successfully logged in", this);
+			Log.info("%s (%s) successfully logged in", username, profileName);
 			valid = true;
 		} finally {
 			save();
