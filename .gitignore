@@ -28,9 +28,13 @@ config.cfg
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
+# InteliJ idea output
+/out/
+
 # Gradle
 /.gradle/
 /gradle/
+/build/
 gradlew
 gradlew.bat
 
