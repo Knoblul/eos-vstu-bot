@@ -42,6 +42,11 @@ import java.awt.*;
 @Plugin(name = "TextPaneAppender", category = "Core", elementType = "appender", printObject = true)
 public class TextPaneAppender extends AbstractAppender {
 	public static JTextPane consoleComponent = new JTextPane() {
+		{
+			setFont(new Font("Consolas", Font.PLAIN, 12));
+			setEditable(false);
+		}
+
 		@Override
 		public boolean getScrollableTracksViewportWidth() {
 			return getUI().getPreferredSize(this).width <= getParent().getSize().width;

@@ -17,7 +17,8 @@ package knoblul.eosvstubot.frontend;
 
 import knoblul.eosvstubot.EosVstuBot;
 import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.frontend.profile.ProfileManagerTable;
+import knoblul.eosvstubot.frontend.profile.ProfileTable;
+import knoblul.eosvstubot.frontend.schedule.ScheduleComponent;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
 import knoblul.eosvstubot.utils.swing.TextPaneAppender;
 
@@ -57,7 +58,7 @@ public class BotWindow extends JFrame {
 		fill();
 		setVisible(true);
 
-		if (context.getProfileManager().isSomeHoldersAreInvalid()) {
+		if (context.getProfileManager().isSomeProfilesAreInvalid()) {
 			DialogUtils.showWarning("Один или несколько пользователей не были загружены." +
 					" Смотрите консоль, чтобы узнать детали.");
 		}
@@ -66,12 +67,9 @@ public class BotWindow extends JFrame {
 	private void fill() {
 		setLayout(new BorderLayout());
 		JTabbedPane tabs = new JTabbedPane();
-
-		tabs.addTab("Пользователи", new ProfileManagerTable(context.getProfileManager()));
-
-		JTextPane console = TextPaneAppender.consoleComponent;
-		console.setFont(new Font("Consolas", Font.PLAIN, 12));
-		tabs.addTab("Консоль", new JScrollPane(console, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+		tabs.addTab("Пользователи", new ProfileTable(context.getProfileManager()));
+		tabs.addTab("Расписание", new ScheduleComponent(context.getLessonsManager()));
+		tabs.addTab("Консоль", new JScrollPane(TextPaneAppender.consoleComponent, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
 				JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED));
 		add(tabs, BorderLayout.CENTER);
 	}

@@ -15,17 +15,23 @@
  */
 package knoblul.eosvstubot.backend.schedule;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.gson.*;
 import knoblul.eosvstubot.backend.BotContext;
+import knoblul.eosvstubot.utils.BotConfig;
 import knoblul.eosvstubot.utils.Log;
+import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Calendar;
-import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
 /**
  * <br><br>Module: eos-vstu-bot
@@ -33,43 +39,56 @@ import java.util.Set;
  * @author Knoblul
  */
 public class LessonsManager {
-	private final BotContext context;
-	private final Path workDir;
+	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-	private Set<Lesson> lessons = Sets.newHashSet();
+	private final BotContext context;
+	private final Path lessonsFile;
+
+	private Map<Integer, List<Lesson>> lessons = Maps.newHashMap();
 
 	public LessonsManager(BotContext context) {
 		this.context = context;
-		this.workDir = Paths.get("Lessons");
-		if (!Files.exists(workDir)) {
-			try {
-				Files.createDirectories(workDir);
-			} catch (IOException e) {
-				e.printStackTrace();
+		this.lessonsFile = Paths.get("lessons.json");
+	}
+
+	public void load() {
+		lessons.clear();
+		if (Files.exists(lessonsFile)) {
+			try (BufferedReader reader = Files.newBufferedReader(lessonsFile)) {
+				JsonArray array = GSON.fromJson(reader, JsonArray.class);
+				for (JsonElement element: array) {
+					Lesson lesson = GSON.fromJson(element, Lesson.class);
+					getWeekLessons(lesson.getWeekIndex()).add(lesson);
+				}
+			} catch (IOException | JsonParseException e) {
+				Log.warn(e, "Failed to load %s", lessonsFile);
 			}
 		}
 	}
 
-	public void create() {
-		Log.info("Loading lessons from folder...");
-		lessons.clear();
-		try (DirectoryStream<Path> ds = Files.newDirectoryStream(workDir, "*.lesson")) {
-			for (Path file: ds) {
-				lessons.add(new Lesson(file));
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
+	public void save() {
+		try (BufferedWriter writer = Files.newBufferedWriter(lessonsFile)) {
+			JsonArray array = new JsonArray();
+			lessons.forEach((k, v) -> v.forEach(lesson -> array.add(GSON.toJsonTree(lesson))));
+			GSON.toJson(array, writer);
+		} catch (IOException | JsonParseException e) {
+			Log.warn(e, "Failed to save %s", lessonsFile);
 		}
+	}
+
+	public BotContext getContext() {
+		return context;
 	}
 
 	public Lesson getCurrentLesson() {
 		Calendar currentCalendar = Calendar.getInstance();
-		int currentWeekIndex = currentCalendar.get(Calendar.WEEK_OF_YEAR) % 2;
+		int currentWeekIndex = getCurrentWeekIndex();
+		List<Lesson> lessons = getWeekLessons(currentWeekIndex);
 		for (Lesson lesson: lessons) {
 			Calendar lessonScheduleCalendar = Calendar.getInstance();
 			lessonScheduleCalendar.setTimeInMillis(lesson.getScheduleTime());
-			int lessonWeekIndex = lesson.getScheduleWeekIndex();
-			long lessonDuration = lesson.getLessonDuration();
+			int lessonWeekIndex = lesson.getWeekIndex();
+			long lessonDuration = lesson.getDuration();
 
 			Calendar lessonStartCalendar = Calendar.getInstance();
 			lessonStartCalendar.set(Calendar.DAY_OF_WEEK, lessonScheduleCalendar.get(Calendar.DAY_OF_WEEK));
@@ -95,10 +114,34 @@ public class LessonsManager {
 		return null;
 	}
 
+	public List<Lesson> getWeekLessons(int weekIndex) {
+		return lessons.computeIfAbsent(weekIndex, (k) -> Lists.newArrayList());
+	}
+
+	public Lesson getLesson(int weekIndex, int lessonIndex) {
+		List<Lesson> lessons = getWeekLessons(weekIndex);
+		return lessonIndex >= 0 && lessonIndex < lessons.size() ? lessons.get(lessonIndex) : null;
+	}
+
 	public void update() {
 		Lesson lesson = getCurrentLesson();
 		if (lesson != null) {
 
 		}
+	}
+
+	public int getCurrentWeekIndex() {
+		return (Calendar.getInstance().get(Calendar.WEEK_OF_YEAR) +
+				BotConfig.instance.getFirstWeekOfYearIndex() - 1) % 2;
+	}
+
+	public void removeLesson(@NotNull Lesson lesson) {
+		getWeekLessons(lesson.getWeekIndex()).remove(lesson);
+	}
+
+	public Lesson createLesson(int weekIndex) {
+		Lesson lesson = new Lesson();
+		getWeekLessons(weekIndex).add(lesson);
+		return lesson;
 	}
 }

@@ -17,8 +17,8 @@
 *.rar
 
 # Файлы/папки приложения
-/Profiles/
-/Lessons/
+Profiles/
+lessons.json
 config.cfg
 
 # файлы капчуров страниц из мозилы
@@ -30,7 +30,7 @@ config.cfg
 hs_err_pid*
 
 # InteliJ idea output
-/out/
+out/
 
 # Gradle
 /.gradle/

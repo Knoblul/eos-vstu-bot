@@ -29,9 +29,9 @@ import java.nio.file.Paths;
 import java.util.List;
 
 /**
- * Этот класс предназначен для управления списком холдеров.
+ * Этот класс предназначен для управления списком профилей.
  * Так же содержит в себе ключевые поля, без которых не сможет
- * работать ни один холдер.
+ * работать ни один профиль.
  *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 21.04.2020 16:49
@@ -57,7 +57,7 @@ public class ProfileManager {
 	 * Флаг, который сигнализирует о том, что некоторые холдеры не
 	 * были залогинены на сайт при чтении с диска.
 	 */
-	private boolean someHoldersAreInvalid;
+	private boolean someProfilesAreInvalid;
 
 	public ProfileManager(BotContext context) {
 		this.context = context;
@@ -79,8 +79,8 @@ public class ProfileManager {
 		return workDir;
 	}
 
-	public boolean isSomeHoldersAreInvalid() {
-		return someHoldersAreInvalid;
+	public boolean isSomeProfilesAreInvalid() {
+		return someProfilesAreInvalid;
 	}
 
 	public List<Profile> getProfiles() {
@@ -88,14 +88,14 @@ public class ProfileManager {
 	}
 
 	/**
-	 * Инициализирует менеджер, читает все холдеры с диска и записывает их
+	 * Инициализирует менеджер, читает все профили с диска и записывает их
 	 * в список {@link #profiles}.
 	 */
-	public void create() {
-		Log.info("Loading logins from folder...");
+	public void load() {
+		Log.info("Loading profiles from folder...");
 
 		profiles.clear();
-		try (DirectoryStream<Path> ds = Files.newDirectoryStream(workDir, "*.login")) {
+		try (DirectoryStream<Path> ds = Files.newDirectoryStream(workDir, "*"+Profile.PROFILE_FILE_EXT)) {
 			for (Path file: ds) {
 				profiles.add(new Profile(this, file));
 			}
@@ -103,65 +103,67 @@ public class ProfileManager {
 			e.printStackTrace();
 		}
 
-		Log.info("Checking logins...");
+		Log.info("Checking profiles...");
 		profiles.forEach(Profile::check);
 
-		someHoldersAreInvalid = false;
-		profiles.forEach(holder -> someHoldersAreInvalid |= !holder.isOnline());
+		someProfilesAreInvalid = false;
+		profiles.forEach(profile -> someProfilesAreInvalid |= !profile.isOnline());
 	}
 
 	/**
-	 * Находит экземпляр холдера в списке по логину пользователя.
+	 * Находит экземпляр профиля в списке по логину пользователя.
 	 * @param username логин пользователя
-	 * @return холдер из списка по логину, либо <code>null</code>
+	 * @return профиль из списка по логину, либо <code>null</code>
 	 */
 	@Nullable
-	public Profile getLoginHolder(@NotNull String username) {
-		for (Profile holder: profiles) {
-			if (holder.getUsername().equals(username)) {
-				return holder;
+	public Profile getProfile(@NotNull String username) {
+		// сейвовая итерация, чтобы избежать ConcurrentModificationException
+		for (int i = 0; i < profiles.size(); i++) {
+			Profile profile = getProfile(i);
+			if (profile != null && profile.getUsername().equals(username)) {
+				return profile;
 			}
 		}
 		return null;
 	}
 
 	/**
-	 * Находит экземпляр холдера в списке по его индексу.
-	 * @param index индекс холдера в списке
-	 * @return холдер из списка по индексу, либо <code>null</code>
+	 * Находит экземпляр профиля в списке по его индексу.
+	 * @param index индекс профиля в списке
+	 * @return профиль из списка по индексу, либо <code>null</code>
 	 */
 	@Nullable
-	public Profile getLoginHolder(int index) {
+	public Profile getProfile(int index) {
 		return index >= 0 && index < profiles.size() ? profiles.get(index) : null;
 	}
 
 	/**
-	 * Создает новый холдер с указанными данными и записывает в список.
+	 * Создает новый профиль с указанными данными и записывает в список.
 	 * @param username логин пользователя
 	 * @param password пароль пользователя
 	 * @throws IllegalArgumentException если username уже используется
-	 * @return новосозданный холдер
+	 * @return новосозданный профиль
 	 */
 	@NotNull
-	public Profile createLoginHolder(@NotNull String username, @NotNull String password) {
-		if (getLoginHolder(username) != null) {
+	public Profile createProfile(@NotNull String username, @NotNull String password) {
+		if (getProfile(username) != null) {
 			throw new IllegalArgumentException("User with that username already exists");
 		}
 
-		Path propertiesFile = Paths.get(workDir.toString(), username + Profile.LOGIN_FILE_EXT);
-		Profile holder = new Profile(this, propertiesFile);
-		holder.setCredentials(username, password);
-		profiles.add(holder);
-		return holder;
+		Path propertiesFile = Paths.get(workDir.toString(), username + Profile.PROFILE_FILE_EXT);
+		Profile profile = new Profile(this, propertiesFile);
+		profile.setCredentials(username, password);
+		profiles.add(profile);
+		return profile;
 	}
 
 	/**
-	 * Удаляет экземпляр холдера из списка а так же данные о нем.
-	 * @param holder холдер, который необходимо удалить
+	 * Удаляет экземпляр профиля из списка а так же данные о нем.
+	 * @param profile профиля, который необходимо удалить
 	 */
-	public void removeLoginHolder(@NotNull Profile holder) {
-		if (profiles.remove(holder)) {
-			holder.delete();
+	public void removeProfile(@NotNull Profile profile) {
+		if (profiles.remove(profile)) {
+			profile.delete();
 		}
 	}
 }

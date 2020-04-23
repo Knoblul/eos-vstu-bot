@@ -19,16 +19,19 @@ import com.google.common.base.Strings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Properties;
 
 /**
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 22.04.2020 15:33
- *
  * @author Knoblul
  */
 public class PropertiesHelper {
@@ -36,11 +39,11 @@ public class PropertiesHelper {
 	 * Сохраняет значения всех переменных, помеченных {@link PropertyField}
 	 * @param clazz класс, для которого вызывается метод
 	 * @param instance экземпляр класса, для которого вызывается метод
-	 * @param properties пропертиес, в который нужно сохранить значения полей
+	 * @param file файл, в который нужно сохранить значения полей
 	 */
-	public static void save(@NotNull Class<?> clazz, @Nullable Object instance, @NotNull Properties properties)
-			throws IOException {
-		try {
+	public static void save(@NotNull Class<?> clazz, @Nullable Object instance, @NotNull Path file) {
+		try (BufferedWriter writer = Files.newBufferedWriter(file)) {
+			Properties properties = new Properties();
 			Field[] fields = clazz.getDeclaredFields();
 			for (Field field : fields) {
 				if (field.isAnnotationPresent(PropertyField.class)) {
@@ -62,20 +65,35 @@ public class PropertiesHelper {
 					properties.setProperty(propertyName, propertyValue);
 				}
 			}
+			properties.store(writer, "");
 		} catch (Throwable e) {
-			throw new IOException(e);
+			Log.warn(e, "Failed to save properties file %s", file);
 		}
 	}
 
 	/**
-	 * Загружает значения всех переменных, помеченных {@link PropertyField}
+	 * Загружает значения всех переменных, помеченных {@link PropertyField}.
+	 * Если файл отсутсвует на диске, то он будет автоматически создан. Нужно
+	 * это для того, чтобы переменным присвоились их дефолтовые значения.
 	 * @param clazz класс, для которого вызывается метод
 	 * @param instance экземпляр класса, для которого вызывается метод
-	 * @param properties пропертиес, из которого нужно загрузить значения полей
+	 * @param file файл, из которого нужно загрузить значения полей
 	 */
-	public static void load(@NotNull Class<?> clazz, @Nullable Object instance, @NotNull Properties properties)
-			throws IOException {
-		try {
+	public static void load(@NotNull Class<?> clazz, @Nullable Object instance, @NotNull Path file) {
+		// если файла нету на диске, создаем его
+		if (!Files.exists(file)) {
+			try {
+				Files.createFile(file);
+			} catch (IOException e) {
+				Log.warn(e, "Failed to create properties file %s", file);
+				return;
+			}
+		}
+
+		try (BufferedReader reader = Files.newBufferedReader(file)) {
+			Properties properties = new Properties();
+			properties.load(reader);
+
 			Field[] fields = clazz.getDeclaredFields();
 			for (Field field : fields) {
 				if (field.isAnnotationPresent(PropertyField.class)) {
@@ -121,7 +139,7 @@ public class PropertiesHelper {
 				}
 			}
 		} catch (Throwable e) {
-			throw new IOException(e);
+			Log.warn(e, "Failed to load properties file %s", file);
 		}
 	}
 }

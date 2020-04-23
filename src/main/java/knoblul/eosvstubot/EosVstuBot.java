@@ -17,6 +17,7 @@ package knoblul.eosvstubot;
 
 import knoblul.eosvstubot.backend.BotContext;
 import knoblul.eosvstubot.frontend.BotWindow;
+import knoblul.eosvstubot.utils.BotConfig;
 import knoblul.eosvstubot.utils.Log;
 
 /**
@@ -31,6 +32,8 @@ public class EosVstuBot {
 
 	public static void main(String[] args) {
 		Log.info("%s v%s", NAME, VERSION);
+		BotConfig.instance.load();
+
 		BotContext context = new BotContext();
 		try {
 			context.create();

@@ -18,6 +18,7 @@ package knoblul.eosvstubot.frontend.profile;
 import com.google.common.collect.Lists;
 import knoblul.eosvstubot.backend.profile.Profile;
 import knoblul.eosvstubot.backend.profile.ProfileManager;
+import knoblul.eosvstubot.utils.swing.DialogUtils;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -25,6 +26,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -32,50 +34,54 @@ import java.util.List;
  * <br>Created: 21.04.2020 22:34
  * @author Knoblul
  */
-public class ProfileManagerTable extends JComponent {
+public class ProfileTable extends JComponent {
 	private final ProfileManager profileManager;
 
 	private JTable table;
-	private ProfileManagerTableModel tableModel;
+	private ProfileTableModel tableModel;
 
 	private JButton editButton;
 	private JButton removeButton;
 	private ProfileEditDialog editDialog;
 
-	public ProfileManagerTable(ProfileManager profileManager) {
+	public ProfileTable(ProfileManager profileManager) {
 		this.profileManager = profileManager;
 		fill();
 	}
 
 	private void onUserSelected(@NotNull ListSelectionEvent event) {
-		int first = event.getFirstIndex();
-		int last = event.getLastIndex();
-		removeButton.setEnabled(first != -1);
-		editButton.setEnabled(false);
-		if (Math.abs(first - last) <= 1) {
-			editButton.setEnabled(first != -1);
-		}
+		int[] rows = table.getSelectedRows();
+		removeButton.setEnabled(rows.length > 0);
+		editButton.setEnabled(rows.length == 1);
 	}
 
-	private void addUser(ActionEvent event) {
+	private void addProfile(ActionEvent event) {
 		if (editDialog.showDialog(profileManager, null)) {
-			tableModel.fireInsertEvent(tableModel.getRowCount()-1);
+			int row = tableModel.getRowCount()-1;
+			tableModel.fireTableRowsInserted(row, row);
 			table.revalidate();
+
+			row = table.convertRowIndexToView(row);
+			table.setRowSelectionInterval(row, row);
 		}
 	}
 
 	/**
 	 * Открывает окно редактирования пользователя
 	 */
-	private void editUser(ActionEvent event) {
-		Profile holder = profileManager.getLoginHolder(table.getSelectedRow());
-		if (holder == null) {
+	private void editProfile(ActionEvent event) {
+		Profile profile = profileManager.getProfile(table.convertRowIndexToModel(table.getSelectedRow()));
+		if (profile == null) {
 			return;
 		}
 
-		if (editDialog.showDialog(profileManager, holder)) {
-			tableModel.fireUpdateEvent(table.getSelectedRow());
+		if (editDialog.showDialog(profileManager, profile)) {
+			int row = tableModel.getRowCount()-1;
+			tableModel.fireTableRowsUpdated(row, row);
 			table.revalidate();
+
+			row = table.convertRowIndexToView(row);
+			table.setRowSelectionInterval(row, row);
 		}
 	}
 
@@ -83,24 +89,38 @@ public class ProfileManagerTable extends JComponent {
 	 * Вызывается при удалении выбранных пользователей.
 	 * Выбранных пользователей может быть несколько.
 	 */
-	private void removeUsers(ActionEvent event) {
-		List<Profile> toRemove = Lists.newArrayList();
-		for (int i: table.getSelectedRows()) {
-			toRemove.add(profileManager.getLoginHolder(i));
+	private void removeProfiles(ActionEvent event) {
+		if (DialogUtils.showConfirmation("Вы уверены что хотите удалить выбранные профили? " +
+				"Они будут удалены НАВСЕГДА.")) {
+			// чтобы избежать десинхрона, нужно вызывать удаление в основном потоке.
+			int[] rows = Arrays.copyOf(table.getSelectedRows(), table.getSelectedRows().length);
+			profileManager.getContext().invokeMainThreadCommand(() -> {
+				List<Profile> toRemove = Lists.newArrayList();
+				for (int row : rows) {
+					Profile profile = profileManager.getProfile(table.convertRowIndexToModel(row));
+					if (profile != null) {
+						toRemove.add(profile);
+					}
+				}
+				toRemove.forEach(profileManager::removeProfile);
+				SwingUtilities.invokeLater(() -> {
+					if (rows.length == 1) {
+						int row = table.convertRowIndexToModel(rows[0]);
+						tableModel.fireTableRowsDeleted(row, row);
+					} else {
+						tableModel.fireTableStructureChanged();
+					}
+					table.revalidate();
+					table.clearSelection();
+				});
+			});
 		}
-		toRemove.forEach(profileManager::removeLoginHolder);
-		for (int i: table.getSelectedRows()) {
-			tableModel.fireDeleteEvent(i);
-		}
-		table.revalidate();
 	}
 
 	private void fill() {
 		editDialog = new ProfileEditDialog();
 		table = new JTable();
-		table.setModel(tableModel = new ProfileManagerTableModel(profileManager));
-		table.getSelectionModel().addListSelectionListener(this::onUserSelected);
-		table.setRowHeight(30);
+		table.setModel(tableModel = new ProfileTableModel(profileManager));
 		table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
 			@Override
 			public Component getTableCellRendererComponent(JTable table, Object value,
@@ -109,10 +129,10 @@ public class ProfileManagerTable extends JComponent {
 						hasFocus, row, column);
 
 				// текст статуса, зеленый или черный
-				if (column == ProfileManagerTableModel.COLUMN_STATUS) {
-					Profile holder = profileManager.getLoginHolder(row);
-					if (holder != null) {
-						label.setForeground(holder.isOnline() ? Color.GREEN.darker()
+				if (column == ProfileTableModel.COLUMN_STATUS) {
+					Profile profile = profileManager.getProfile(row);
+					if (profile != null) {
+						label.setForeground(profile.isOnline() ? Color.GREEN.darker()
 								: Color.RED.darker());
 					}
 				} else {
@@ -122,31 +142,33 @@ public class ProfileManagerTable extends JComponent {
 				// каждая вторая строка в таблице темнее чем каждая первая
 				if (!isSelected) {
 					Color color1 = new Color(255, 255, 255);
-					Color color2 = new Color(240, 240, 240);
+					Color color2 = new Color(230, 230, 230);
 					label.setBackground(row % 2 == 0 ? color1 : color2);
 				}
 
 				return label;
 			}
 		});
+		table.getSelectionModel().addListSelectionListener(this::onUserSelected);
 		table.setFont(table.getFont().deriveFont(12F));
 		table.setGridColor(new Color(200, 200, 200));
+		table.setRowHeight(30);
 
 		setLayout(new BorderLayout());
 		add(new JScrollPane(table, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
 				JScrollPane.HORIZONTAL_SCROLLBAR_NEVER), BorderLayout.CENTER);
 
-		JButton addButton;
-
 		JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+		JButton addButton;
 		buttonsPanel.add(addButton = new JButton("Добавить"));
 		buttonsPanel.add(editButton = new JButton("Изменить"));
 		buttonsPanel.add(removeButton = new JButton("Удалить"));
 		add(buttonsPanel, BorderLayout.SOUTH);
 
-		addButton.addActionListener(this::addUser);
-		editButton.addActionListener(this::editUser);
-		removeButton.addActionListener(this::removeUsers);
+		addButton.addActionListener(this::addProfile);
+		editButton.addActionListener(this::editProfile);
+		removeButton.addActionListener(this::removeProfiles);
 
 		onUserSelected(new ListSelectionEvent(table, -1, -1, false));
 	}

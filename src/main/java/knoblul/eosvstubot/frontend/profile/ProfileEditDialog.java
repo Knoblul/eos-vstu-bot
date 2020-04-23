@@ -29,12 +29,12 @@ import java.io.IOException;
  * <br>Created: 22.04.2020 10:47
  * @author Knoblul
  */
-public class ProfileEditDialog extends JComponent {
+class ProfileEditDialog extends JComponent {
 	private JTextField usernameField;
 	private JPasswordField passwordField;
 	private JTextField chatPhrasesField;
 
-	public ProfileEditDialog() {
+	ProfileEditDialog() {
 		fill();
 	}
 
@@ -64,30 +64,30 @@ public class ProfileEditDialog extends JComponent {
 				" в чате. Разделяются символом '" + Profile.CHAT_PHRASES_DELIMITER + "'. ");
 	}
 
-	public String getUsername() {
+	String getUsername() {
 		return usernameField.getText().trim();
 	}
 
-	public String getPassword() {
+	String getPassword() {
 		return new String(passwordField.getPassword());
 	}
 
-	public String getChatPhrases() {
+	String getChatPhrases() {
 		return chatPhrasesField.getText().trim();
 	}
 
-	public boolean showDialog(ProfileManager profileManager, Profile editingHolder) {
-		if (editingHolder != null) {
-			usernameField.setText(editingHolder.getUsername());
-			passwordField.setText(editingHolder.getPassword());
-			chatPhrasesField.setText(editingHolder.getChatPhrasesAsString());
+	boolean showDialog(ProfileManager profileManager, Profile editingProfile) {
+		if (editingProfile != null) {
+			usernameField.setText(editingProfile.getUsername());
+			passwordField.setText(editingProfile.getPassword());
+			chatPhrasesField.setText(editingProfile.getChatPhrasesAsString());
 		} else {
 			usernameField.setText("");
 			passwordField.setText("");
 			chatPhrasesField.setText(Profile.DEFAULT_CHAT_PHRASES);
 		}
 
-		String title = editingHolder == null ? "Создать пользователя" : "Изменить данные пользователя";
+		String title = editingProfile == null ? "Создать пользователя" : "Изменить данные пользователя";
 		while (true) {
 			if (JOptionPane.showConfirmDialog(BotWindow.instance, this, title,
 					JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
@@ -98,36 +98,37 @@ public class ProfileEditDialog extends JComponent {
 			String password = getPassword();
 			String chatPhrases = getChatPhrases();
 			if (!username.isEmpty() && !password.isEmpty()) {
-				if (profileManager.getLoginHolder(username) != editingHolder) {
+				Profile listedProfile = profileManager.getProfile(username);
+				if (listedProfile != null && listedProfile != editingProfile) {
 					DialogUtils.showWarning("Пользователь с таким именем уже существует.");
 					continue;
 				}
 
-				boolean needsRelogin;
-				Profile holder;
-				if (editingHolder != null) {
-					holder = editingHolder;
+				boolean needsLogin;
+				Profile profile;
+				if (editingProfile != null) {
+					profile = editingProfile;
 					// не перелогиниваем пользователя если логин и пароль не были изменены
-					needsRelogin = !editingHolder.getUsername().equals(username) ||
-							!editingHolder.getPassword().equals(password);
-					editingHolder.setChatPhrasesFromString(chatPhrases);
-					if (needsRelogin) {
-						editingHolder.setCredentials(username, password);
+					needsLogin = !editingProfile.getUsername().equals(username) ||
+							!editingProfile.getPassword().equals(password);
+					editingProfile.setChatPhrasesFromString(chatPhrases);
+					if (needsLogin) {
+						editingProfile.setCredentials(username, password);
 					}
 				} else {
-					holder = profileManager.createLoginHolder(username, password);
-					holder.setChatPhrasesFromString(chatPhrases);
-					needsRelogin = true;
+					profile = profileManager.createProfile(username, password);
+					profile.setChatPhrasesFromString(chatPhrases);
+					needsLogin = true;
 				}
 
-				if (needsRelogin) {
+				if (needsLogin) {
 					try {
-						holder.login();
+						profile.login();
 					} catch (IOException e) {
 						DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.", e);
 					}
 				} else {
-					holder.save();
+					profile.save();
 				}
 
 				return true;

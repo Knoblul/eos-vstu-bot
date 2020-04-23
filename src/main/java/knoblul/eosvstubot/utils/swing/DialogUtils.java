@@ -29,7 +29,10 @@ import java.awt.*;
  */
 public class DialogUtils {
 	public static void showWarning(String message) {
-		JOptionPane.showMessageDialog(BotWindow.instance, message, "Внимание", JOptionPane.WARNING_MESSAGE);
+		SwingUtilities.invokeLater(() ->
+				JOptionPane.showMessageDialog(BotWindow.instance, message,
+						"Внимание", JOptionPane.WARNING_MESSAGE)
+		);
 	}
 
 	public static void showError(String message, Throwable t) {
@@ -80,6 +83,11 @@ public class DialogUtils {
 		gbc.weighty = 0;
 		dialog.add(ok, gbc);
 
-		dialog.setVisible(true);
+		SwingUtilities.invokeLater(() -> dialog.setVisible(true));
+	}
+
+	public static boolean showConfirmation(String message) {
+		return JOptionPane.showConfirmDialog(BotWindow.instance, message, "Подтвердите",
+				JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
 	}
 }

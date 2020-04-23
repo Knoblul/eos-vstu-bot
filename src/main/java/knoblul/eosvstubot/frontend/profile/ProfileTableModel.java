@@ -18,17 +18,14 @@ package knoblul.eosvstubot.frontend.profile;
 import knoblul.eosvstubot.backend.profile.Profile;
 import knoblul.eosvstubot.backend.profile.ProfileManager;
 
-import javax.swing.event.EventListenerList;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
-import javax.swing.table.TableModel;
+import javax.swing.table.AbstractTableModel;
 
 /**
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 21.04.2020 22:19
  * @author Knoblul
  */
-public class ProfileManagerTableModel implements TableModel {
+class ProfileTableModel extends AbstractTableModel {
 	public static final int COLUMN_USERNAME = 0;
 	public static final int COLUMN_PROFILE_NAME = 1;
 	public static final int COLUMN_STATUS = 2;
@@ -36,9 +33,7 @@ public class ProfileManagerTableModel implements TableModel {
 	private static final String[] COLUMNS = new String[] { "Логин", "Имя", "Статус" };
 	private final ProfileManager profileManager;
 
-	private EventListenerList listenerList = new EventListenerList();
-
-	public ProfileManagerTableModel(ProfileManager profileManager) {
+	ProfileTableModel(ProfileManager profileManager) {
 		this.profileManager = profileManager;
 	}
 
@@ -58,19 +53,9 @@ public class ProfileManagerTableModel implements TableModel {
 	}
 
 	@Override
-	public Class<?> getColumnClass(int columnIndex) {
-		return Object.class;
-	}
-
-	@Override
-	public boolean isCellEditable(int rowIndex, int columnIndex) {
-		return false;
-	}
-
-	@Override
 	public Object getValueAt(int rowIndex, int columnIndex) {
 		if (getColumnName(columnIndex) != null) {
-			Profile holder = profileManager.getLoginHolder(rowIndex);
+			Profile holder = profileManager.getProfile(rowIndex);
 			if (holder != null) {
 				switch (columnIndex) {
 					case COLUMN_USERNAME:
@@ -83,44 +68,5 @@ public class ProfileManagerTableModel implements TableModel {
 			}
 		}
 		return null;
-	}
-
-	@Override
-	public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
-
-	}
-
-	@Override
-	public void addTableModelListener(TableModelListener l) {
-		listenerList.add(TableModelListener.class, l);
-	}
-
-	@Override
-	public void removeTableModelListener(TableModelListener l) {
-		listenerList.remove(TableModelListener.class, l);
-	}
-
-	public void fireChangeEvent(int firstRow, int lastRow, int eventType) {
-		TableModelListener[] listeners = listenerList.getListeners(TableModelListener.class);
-		for (TableModelListener listener: listeners) {
-			listener.tableChanged(new TableModelEvent(this, 0, getRowCount(),
-					TableModelEvent.ALL_COLUMNS, eventType));
-		}
-	}
-
-	public void fireInsertEvent(int row) {
-		fireChangeEvent(row, row, TableModelEvent.INSERT);
-	}
-
-	public void fireDeleteEvent(int row) {
-		fireChangeEvent(row, row, TableModelEvent.DELETE);
-	}
-
-	public void fireUpdateEvent(int row) {
-		fireChangeEvent(row, row, TableModelEvent.UPDATE);
-	}
-
-	public void fireUpdateEvent() {
-		fireChangeEvent(0, getRowCount(), TableModelEvent.UPDATE);
 	}
 }

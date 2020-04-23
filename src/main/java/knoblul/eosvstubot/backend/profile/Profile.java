@@ -49,20 +49,20 @@ public class Profile {
 	public static final char CHAT_PHRASES_DELIMITER = '|';
 	public static final String DEFAULT_CHAT_PHRASES = "+";
 
-	static final String LOGIN_FILE_EXT = ".login";
+	static final String PROFILE_FILE_EXT = ".profile";
 
 	private static final String COOKIE_MID_NAME = "MOODLEID1_";
 	private static final String COOKIE_SESSION_NAME = "MoodleSession";
 
 	/**
-	 * Менеджер логинов, который хранит в себе экземпляр
-	 * данного холдера.
+	 * Менеджер профилей, который хранит в себе экземпляр
+	 * данного профиля.
 	 */
 	private final ProfileManager manager;
 
 	/**
 	 * Пропертиес, который хранит в себе все необходимые данные для
-	 * сериализации/десериализации холдера.
+	 * сериализации/десериализации профиля.
 	 */
 	private final Properties properties;
 
@@ -164,7 +164,7 @@ public class Profile {
 
 		this.username = username;
 		this.password = password;
-		this.propertiesFile = Paths.get(manager.getWorkDir().toString(), username+LOGIN_FILE_EXT);
+		this.propertiesFile = Paths.get(manager.getWorkDir().toString(), username+PROFILE_FILE_EXT);
 
 		// удаляем предыдущий файл конфига
 		try {
@@ -176,27 +176,14 @@ public class Profile {
 	 * Десериализует себя из конфиг файла
 	 */
 	public void load() {
-		properties.clear();
-		if (Files.exists(propertiesFile)) {
-			try (BufferedReader reader = Files.newBufferedReader(propertiesFile)) {
-				properties.load(reader);
-				PropertiesHelper.load(Profile.class, this, properties);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+		PropertiesHelper.load(Profile.class, this, propertiesFile);
 	}
 
 	/**
 	 * Серализует себя в конфиг файл
 	 */
 	public void save() {
-		try (BufferedWriter writer = Files.newBufferedWriter(propertiesFile)) {
-			PropertiesHelper.save(Profile.class, this, properties);
-			properties.store(writer, EosVstuBot.NAME + " Login File");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		PropertiesHelper.save(Profile.class, this, propertiesFile);
 	}
 
 	@SuppressWarnings("unused")
@@ -325,7 +312,7 @@ public class Profile {
 			try {
 				login();
 			} catch (IOException x) {
-				Log.error(x,"%s login failed. Holder is invalid.", username);
+				Log.error(x,"%s login failed. Profile is invalid.", username);
 			}
 		}
 	}

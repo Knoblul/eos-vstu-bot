@@ -110,7 +110,7 @@ public class BotContext {
 	 * Основное назначение - блокирование текущего потока и ожидание команд.
 	 */
 	public void processMainThreadCommands() {
-		Log.info("Starting command processing...");
+		Log.info("Command processing started");
 		while (true) {
 			Runnable command = mainThreadCommands.poll();
 			if (command != null) {
@@ -122,6 +122,7 @@ public class BotContext {
 			try {
 				Thread.sleep(1);
 			} catch (InterruptedException e) {
+				Log.info("Command processing terminated");
 				break;
 			}
 		}
@@ -143,6 +144,14 @@ public class BotContext {
 	}
 
 	/**
+	 * @return {@link #lessonsManager}
+	 */
+	public LessonsManager getLessonsManager() {
+		check();
+		return lessonsManager;
+	}
+
+	/**
 	 * Создает котекст. Далее все контекстные действия могут выполнятся
 	 * вплоть до вызова {@link #destroy()}.
 	 */
@@ -152,8 +161,8 @@ public class BotContext {
 				.setRedirectStrategy(new LaxRedirectStrategy())
 				.setDefaultCookieStore(cookieStore)
 				.build();
-		profileManager.create();
-		lessonsManager.create();
+		profileManager.load();
+		lessonsManager.load();
 	}
 
 	/**
