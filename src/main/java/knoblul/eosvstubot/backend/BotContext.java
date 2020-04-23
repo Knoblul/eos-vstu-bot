@@ -46,6 +46,7 @@ import org.jsoup.nodes.Document;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
@@ -161,6 +162,9 @@ public class BotContext {
 				.setRedirectStrategy(new LaxRedirectStrategy())
 				.setDefaultCookieStore(cookieStore)
 				.build();
+	}
+
+	public void loadManagers() {
 		profileManager.load();
 		lessonsManager.load();
 	}
@@ -277,9 +281,14 @@ public class BotContext {
 		}
 
 		try {
-			URIBuilder uriBuilder = new URIBuilder(uri);
-			uriBuilder.setParameters(params);
-			HttpGet request = new HttpGet(uriBuilder.build());
+			HttpGet request;
+			if (params.isEmpty()) {
+				request = new HttpGet(uri);
+			} else {
+				URIBuilder uriBuilder = new URIBuilder(uri);
+				uriBuilder.setParameters(params);
+				request = new HttpGet(uriBuilder.build());
+			}
 			request.setConfig(config);
 			return request;
 		} catch (URISyntaxException e) {

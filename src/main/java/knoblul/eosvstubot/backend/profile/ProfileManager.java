@@ -15,18 +15,28 @@
  */
 package knoblul.eosvstubot.backend.profile;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.gson.*;
+import knoblul.eosvstubot.EosVstuBot;
 import knoblul.eosvstubot.backend.BotContext;
 import knoblul.eosvstubot.utils.Log;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Этот класс предназначен для управления списком профилей.
@@ -38,49 +48,33 @@ import java.util.List;
  * @author Knoblul
  */
 public class ProfileManager {
+	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+	private static final String COOKIE_MID_NAME = "MOODLEID1_";
+	private static final String COOKIE_SESSION_NAME = "MoodleSession";
+
 	/**
 	 * Контекст бота
 	 */
 	private final BotContext context;
 
 	/**
-	 * Папка, в которую сохраняются холдеры
+	 * Json-файл, в котором хранятся профили
 	 */
-	private final Path workDir;
+	private final Path profilesFile;
 
 	/**
-	 * Список всех холдеров, зарегестрированых менеджером.
+	 * Список всех профилей, зарегестрированых менеджером.
 	 */
 	private List<Profile> profiles = Lists.newArrayList();
 
-	/**
-	 * Флаг, который сигнализирует о том, что некоторые холдеры не
-	 * были залогинены на сайт при чтении с диска.
-	 */
-	private boolean someProfilesAreInvalid;
-
 	public ProfileManager(BotContext context) {
 		this.context = context;
-		this.workDir = Paths.get("Profiles");
-		if (!Files.exists(workDir)) {
-			try {
-				Files.createDirectories(workDir);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+		this.profilesFile = Paths.get("profiles.json");
 	}
 
 	public BotContext getContext() {
 		return context;
-	}
-
-	public Path getWorkDir() {
-		return workDir;
-	}
-
-	public boolean isSomeProfilesAreInvalid() {
-		return someProfilesAreInvalid;
 	}
 
 	public List<Profile> getProfiles() {
@@ -88,26 +82,170 @@ public class ProfileManager {
 	}
 
 	/**
-	 * Инициализирует менеджер, читает все профили с диска и записывает их
-	 * в список {@link #profiles}.
+	 * Десериализует все профили из json-файла, затем
+	 * проверяет их запросами на сайт.
 	 */
 	public void load() {
-		Log.info("Loading profiles from folder...");
-
+		Log.info("Loading profiles...");
 		profiles.clear();
-		try (DirectoryStream<Path> ds = Files.newDirectoryStream(workDir, "*"+Profile.PROFILE_FILE_EXT)) {
-			for (Path file: ds) {
-				profiles.add(new Profile(this, file));
+		if (Files.exists(profilesFile)) {
+			try (BufferedReader reader = Files.newBufferedReader(profilesFile)) {
+				JsonArray array = GSON.fromJson(reader, JsonArray.class);
+				if (array != null) {
+					for (JsonElement element : array) {
+						profiles.add(GSON.fromJson(element, Profile.class));
+					}
+				}
+			} catch (IOException | JsonParseException e) {
+				Log.warn(e, "Failed to load %s", profilesFile);
 			}
+		}
+		Log.info("Checking profiles...");
+		profiles.forEach(this::checkProfile);
+		save();
+	}
+
+	/**
+	 * Сериализует все профили в json-файл.
+	 */
+	public void save() {
+		try (BufferedWriter writer = Files.newBufferedWriter(profilesFile)) {
+			JsonArray array = new JsonArray();
+			profiles.forEach(profile -> array.add(GSON.toJsonTree(profile)));
+			GSON.toJson(array, writer);
+		} catch (IOException | JsonParseException e) {
+			Log.warn(e, "Failed to save %s", profilesFile);
+		}
+	}
+
+	/**
+	 * Парсит данные профиля с главной страницы. Проверяет залогинен ли пользователь.
+	 * Если залогинен, то парсит и устанавливает настоящее имя пользователя и ссылку на профиль.
+	 * @param index страница главной
+	 * @throws IOException если произошла неизвестная ошибка, например
+	 * код index-страницы был изменен и парсинг невозможен.
+	 */
+	private static void parseIndexProfileInfo(@NotNull Profile profile, @NotNull Document index) throws IOException {
+		Elements userMenu = index.select(".navbar .navbar-inner .container-fluid .usermenu");
+		if (!userMenu.select(".login").isEmpty()) {
+			throw new IOException("Invalid login");
+		} else {
+			Elements profileNameElement = userMenu.select(".menubar li a .userbutton .usertext");
+			if (profileNameElement.isEmpty()) {
+				throw new IOException("Something went wrong - failed to parse profile name");
+			}
+
+			Elements profileLinkElement = userMenu.select(".menu li [aria-labelledby=actionmenuaction-2]");
+			if (profileLinkElement.isEmpty()) {
+				throw new IOException("Something went wrong - failed to parse profile link");
+			}
+
+			profile.setProfileName(profileNameElement.first().text().trim());
+			profile.setProfileLink(profileLinkElement.first().attr("href").trim());
+		}
+	}
+
+	/**
+	 * Инвалидирует указанный профиль. Все данные сессии, которые он хранил
+	 * будут удалены.
+	 * @param profile профиль, который инвалидировать.
+	 */
+	public void logoutProfile(@NotNull Profile profile) {
+		profile.invalidate();
+	}
+
+	/**
+	 * "Выбирает" указанный профиль. После выбора, <b>все действия,
+	 * проходящие через контекст будут выполнятся от именеи
+	 * данного профиля.</b>
+	 * @param profile профиль, который выбрать
+	 */
+	public void selectProfile(@Nullable Profile profile) {
+		context.clearCookies();
+		if (profile != null) {
+			String[] cookies = profile.getCookies();
+			context.setCookie(COOKIE_MID_NAME, cookies[0], EosVstuBot.SITE_DOMAIN, "/");
+			context.setCookie(COOKIE_SESSION_NAME, cookies[1], EosVstuBot.SITE_DOMAIN, "/");
+		}
+	}
+
+	/**
+	 * Проверяет, действителен ли профиль простым GET запросом на index.
+	 * Если не действителен, то пытается войти с помощью {@link #loginProfile(Profile)}
+	 */
+	public void checkProfile(@NotNull Profile profile) {
+		try {
+			// выбираем этот профиль для проверки
+			selectProfile(profile);
+			// отправляем гет запрос на главную страницу
+			String checkURI = "http://" + EosVstuBot.SITE_DOMAIN + "/index.php";
+			HttpGet request = context.buildGetRequest(checkURI, null);
+			Document document = context.executeRequestAndParseResponse(request);
+			parseIndexProfileInfo(profile, document); // парсим главную страницу
+			Log.info("%s check success", profile.getUsername());
+			profile.setValid(true);
 		} catch (IOException e) {
-			e.printStackTrace();
+			// фоллбек стратегия - логинемся на сайте заново.
+			Log.warn(e.getMessage().equalsIgnoreCase("Invalid login") ? null : e,
+					"%s check failed. Logging in...", profile.getUsername());
+			try {
+				loginProfile(profile);
+			} catch (IOException x) {
+				Log.error(x,"%s login failed. Profile is invalid.", profile.getUsername());
+			}
+		}
+	}
+
+	/**
+	 * Отправляет на сайт запрос о создании сесси используя пароль.
+	 *
+	 * @throws IOException если произошла ошибка
+	 */
+	public void loginProfile(@NotNull Profile profile) throws IOException {
+		if (profile.isValid()) {
+			// удаляем сессионные данные профиля
+			logoutProfile(profile);
 		}
 
-		Log.info("Checking profiles...");
-		profiles.forEach(Profile::check);
+		// очищаем все куки перед входом
+		context.clearCookies();
 
-		someProfilesAreInvalid = false;
-		profiles.forEach(profile -> someProfilesAreInvalid |= !profile.isOnline());
+		String loginURI = "http://" + EosVstuBot.SITE_DOMAIN + "/login/index.php";
+		Map<String, String> params = Maps.newHashMap();
+		params.put("username", profile.getUsername());
+		params.put("password", profile.getPassword());
+		params.put("rememberusername", "1");
+		params.put("anchor", "");
+		HttpPost request = context.buildPostRequest(loginURI, params);
+		Document document = context.executeRequestAndParseResponse(request);
+
+		// парсим примечание (обычно отображается если пользователь
+		// уже авторизирован)
+		String notice = document.select("#page #page-content #region-main #notice p").text();
+		if (!Strings.isNullOrEmpty(notice)) {
+			throw new IOException(notice);
+		}
+
+		// парсим ошибку входа (обычно отображается если
+		// сайтом выявлена ошибка входа, напр. неверный логин или пароль)
+		String loginErrorMessage =
+				document.select("#page #page-content #region-main div.loginpanel div.loginerrors a")
+						.text();
+		if (!Strings.isNullOrEmpty(loginErrorMessage)) {
+			throw new IOException(loginErrorMessage);
+		}
+
+		// после успешного входа происходит редирект на главную.
+		// парсим имя профиля и ссылку профиля с главной страницы
+		parseIndexProfileInfo(profile, document);
+
+		// сохраняем значение сессионных куки, которые возвратил сайт
+		String[] cookies = profile.getCookies();
+		cookies[0] = context.getCookieValue(COOKIE_MID_NAME);
+		cookies[1] = context.getCookieValue(COOKIE_SESSION_NAME);
+
+		Log.info("%s (%s) successfully logged in", profile.getUsername(), profile.getProfileName());
+		profile.setValid(true);
 	}
 
 	/**
@@ -150,8 +288,7 @@ public class ProfileManager {
 			throw new IllegalArgumentException("User with that username already exists");
 		}
 
-		Path propertiesFile = Paths.get(workDir.toString(), username + Profile.PROFILE_FILE_EXT);
-		Profile profile = new Profile(this, propertiesFile);
+		Profile profile = new Profile();
 		profile.setCredentials(username, password);
 		profiles.add(profile);
 		return profile;
@@ -162,8 +299,6 @@ public class ProfileManager {
 	 * @param profile профиля, который необходимо удалить
 	 */
 	public void removeProfile(@NotNull Profile profile) {
-		if (profiles.remove(profile)) {
-			profile.delete();
-		}
+		profiles.remove(profile);
 	}
 }

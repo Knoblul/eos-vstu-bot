@@ -84,7 +84,8 @@ class ProfileEditDialog extends JComponent {
 		} else {
 			usernameField.setText("");
 			passwordField.setText("");
-			chatPhrasesField.setText(Profile.DEFAULT_CHAT_PHRASES);
+			chatPhrasesField.setText(String.join(""+Profile.CHAT_PHRASES_DELIMITER,
+					Profile.DEFAULT_CHAT_PHRASES));
 		}
 
 		String title = editingProfile == null ? "Создать пользователя" : "Изменить данные пользователя";
@@ -113,6 +114,7 @@ class ProfileEditDialog extends JComponent {
 							!editingProfile.getPassword().equals(password);
 					editingProfile.setChatPhrasesFromString(chatPhrases);
 					if (needsLogin) {
+						profileManager.logoutProfile(profile);
 						editingProfile.setCredentials(username, password);
 					}
 				} else {
@@ -123,14 +125,12 @@ class ProfileEditDialog extends JComponent {
 
 				if (needsLogin) {
 					try {
-						profile.login();
+						profileManager.loginProfile(profile);
 					} catch (IOException e) {
 						DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.", e);
 					}
-				} else {
-					profile.save();
 				}
-
+				profileManager.save();
 				return true;
 			}
 		}

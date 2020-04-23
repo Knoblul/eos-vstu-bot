@@ -17,6 +17,7 @@ package knoblul.eosvstubot.frontend;
 
 import knoblul.eosvstubot.EosVstuBot;
 import knoblul.eosvstubot.backend.BotContext;
+import knoblul.eosvstubot.backend.profile.Profile;
 import knoblul.eosvstubot.frontend.profile.ProfileTable;
 import knoblul.eosvstubot.frontend.schedule.ScheduleComponent;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
@@ -58,7 +59,9 @@ public class BotWindow extends JFrame {
 		fill();
 		setVisible(true);
 
-		if (context.getProfileManager().isSomeProfilesAreInvalid()) {
+		// если в списке профилей хотя бы один не смог зайти на сайт,
+		// то выводим предупреждение
+		if (!context.getProfileManager().getProfiles().stream().allMatch(Profile::isValid)) {
 			DialogUtils.showWarning("Один или несколько пользователей не были загружены." +
 					" Смотрите консоль, чтобы узнать детали.");
 		}

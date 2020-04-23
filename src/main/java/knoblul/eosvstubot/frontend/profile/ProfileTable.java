@@ -103,6 +103,7 @@ public class ProfileTable extends JComponent {
 					}
 				}
 				toRemove.forEach(profileManager::removeProfile);
+				profileManager.save();
 				SwingUtilities.invokeLater(() -> {
 					if (rows.length == 1) {
 						int row = table.convertRowIndexToModel(rows[0]);
@@ -132,7 +133,7 @@ public class ProfileTable extends JComponent {
 				if (column == ProfileTableModel.COLUMN_STATUS) {
 					Profile profile = profileManager.getProfile(row);
 					if (profile != null) {
-						label.setForeground(profile.isOnline() ? Color.GREEN.darker()
+						label.setForeground(profile.isValid() ? Color.GREEN.darker()
 								: Color.RED.darker());
 					}
 				} else {
@@ -145,7 +146,7 @@ public class ProfileTable extends JComponent {
 					Color color2 = new Color(230, 230, 230);
 					label.setBackground(row % 2 == 0 ? color1 : color2);
 				}
-
+				label.setToolTipText(label.getText());
 				return label;
 			}
 		});
@@ -153,6 +154,10 @@ public class ProfileTable extends JComponent {
 		table.setFont(table.getFont().deriveFont(12F));
 		table.setGridColor(new Color(200, 200, 200));
 		table.setRowHeight(30);
+
+		JTextField tf = new JTextField();
+		tf.setEditable(false);
+		table.setDefaultEditor(Object.class, new DefaultCellEditor(tf));
 
 		setLayout(new BorderLayout());
 		add(new JScrollPane(table, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,

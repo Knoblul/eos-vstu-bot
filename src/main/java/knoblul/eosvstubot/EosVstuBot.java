@@ -37,6 +37,7 @@ public class EosVstuBot {
 		BotContext context = new BotContext();
 		try {
 			context.create();
+			context.loadManagers();
 			new BotWindow(context);
 			context.processMainThreadCommands();
 		} finally {

@@ -17,7 +17,7 @@
 *.rar
 
 # Файлы/папки приложения
-Profiles/
+profiles.json
 lessons.json
 config.cfg
 

@@ -94,12 +94,10 @@ class ScheduleTableModel extends AbstractTableModel {
 					case COLUMN_TEACHER:
 						return lesson.getTeacher();
 					case COLUMN_TIME:
-//						return String.format("%02d:%02d:%02d",
-//								scheduleCalendar.get(Calendar.HOUR_OF_DAY),
-//								scheduleCalendar.get(Calendar.MINUTE),
-//								scheduleCalendar.get(Calendar.SECOND)
-//						);
-						return scheduleCalendar.getTimeInMillis();
+						scheduleCalendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY);
+						long timeWithoutDays = scheduleCalendar.getTimeInMillis();
+						scheduleCalendar.setTimeInMillis(lesson.getScheduleTime());
+						return timeWithoutDays;
 					case COLUMN_DURATION:
 						return String.format("%02d:%02d:%02d",
 								TimeUnit.MILLISECONDS.toHours(lesson.getDuration())%24,

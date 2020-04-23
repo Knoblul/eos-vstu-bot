@@ -28,9 +28,10 @@ import javax.swing.table.AbstractTableModel;
 class ProfileTableModel extends AbstractTableModel {
 	public static final int COLUMN_USERNAME = 0;
 	public static final int COLUMN_PROFILE_NAME = 1;
-	public static final int COLUMN_STATUS = 2;
+	public static final int COLUMN_PROFILE_LINK = 2;
+	public static final int COLUMN_STATUS = 3;
 
-	private static final String[] COLUMNS = new String[] { "Логин", "Имя", "Статус" };
+	private static final String[] COLUMNS = new String[] { "Логин", "Имя", "Ссылка на профиль", "Статус" };
 	private final ProfileManager profileManager;
 
 	ProfileTableModel(ProfileManager profileManager) {
@@ -53,6 +54,11 @@ class ProfileTableModel extends AbstractTableModel {
 	}
 
 	@Override
+	public boolean isCellEditable(int rowIndex, int columnIndex) {
+		return columnIndex != COLUMN_STATUS;
+	}
+
+	@Override
 	public Object getValueAt(int rowIndex, int columnIndex) {
 		if (getColumnName(columnIndex) != null) {
 			Profile holder = profileManager.getProfile(rowIndex);
@@ -62,8 +68,10 @@ class ProfileTableModel extends AbstractTableModel {
 						return holder.getUsername();
 					case COLUMN_PROFILE_NAME:
 						return holder.getProfileName();
+					case COLUMN_PROFILE_LINK:
+						return holder.getProfileLink();
 					case COLUMN_STATUS:
-						return holder.isOnline() ? "Действителен" : "Ошибка входа";
+						return holder.isValid() ? "Действителен" : "Ошибка входа";
 				}
 			}
 		}

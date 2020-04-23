@@ -52,13 +52,17 @@ public class LessonsManager {
 	}
 
 	public void load() {
+		Log.info("Loading lesson schedule...");
+
 		lessons.clear();
 		if (Files.exists(lessonsFile)) {
 			try (BufferedReader reader = Files.newBufferedReader(lessonsFile)) {
 				JsonArray array = GSON.fromJson(reader, JsonArray.class);
-				for (JsonElement element: array) {
-					Lesson lesson = GSON.fromJson(element, Lesson.class);
-					getWeekLessons(lesson.getWeekIndex()).add(lesson);
+				if (array != null) {
+					for (JsonElement element : array) {
+						Lesson lesson = GSON.fromJson(element, Lesson.class);
+						getWeekLessons(lesson.getWeekIndex()).add(lesson);
+					}
 				}
 			} catch (IOException | JsonParseException e) {
 				Log.warn(e, "Failed to load %s", lessonsFile);
