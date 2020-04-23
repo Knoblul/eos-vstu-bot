@@ -71,13 +71,16 @@ public class TextPaneAppender extends AbstractAppender {
 	@Override
 	public void append(LogEvent event) {
 		Color color = event.getLevel().isMoreSpecificThan(Level.WARN) ? Color.RED.brighter().brighter() : Color.BLACK;
-		StyleContext sc = StyleContext.getDefaultStyleContext();
-		AttributeSet aset = sc.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, color);
+		StyleContext context = StyleContext.getDefaultStyleContext();
+		AttributeSet attributes = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, color);
 
 		String message = new String(getLayout().toByteArray(event));
 		int len = consoleComponent.getDocument().getLength();
+		consoleComponent.setEditable(true);
 		consoleComponent.setCaretPosition(len);
-		consoleComponent.setCharacterAttributes(aset, false);
+		consoleComponent.setCharacterAttributes(attributes, false);
 		consoleComponent.replaceSelection(message);
+		consoleComponent.setCaretPosition(consoleComponent.getDocument().getLength());
+		consoleComponent.setEditable(false);
 	}
 }
