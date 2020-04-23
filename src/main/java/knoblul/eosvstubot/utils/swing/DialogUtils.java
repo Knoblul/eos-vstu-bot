@@ -11,10 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.misc;
+package knoblul.eosvstubot.utils.swing;
 
 import com.google.common.base.Throwables;
-import knoblul.eosvstubot.frontend.BotUI;
+import knoblul.eosvstubot.frontend.BotWindow;
 import knoblul.eosvstubot.utils.Log;
 
 import javax.swing.*;
@@ -27,13 +27,15 @@ import java.awt.*;
  */
 public class DialogUtils {
 	public static void showWarning(String message) {
-		JOptionPane.showMessageDialog(BotUI.instance, message, "Внимание", JOptionPane.WARNING_MESSAGE);
+		JOptionPane.showMessageDialog(BotWindow.instance, message, "Внимание", JOptionPane.WARNING_MESSAGE);
 	}
 
 	public static void showError(String message, Throwable t) {
+		// какой то старый снипплет свинг диалога с ошибкой,
+		// украл из старго проекта
 		Log.error(t, message);
 
-		JDialog dialog = new JDialog(BotUI.instance, "Ошибка", true);
+		JDialog dialog = new JDialog(BotWindow.instance, "Ошибка", true);
 		dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
 		dialog.setLayout(new GridBagLayout());
 

@@ -11,12 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.login;
+package knoblul.eosvstubot.frontend.profile;
 
-import knoblul.eosvstubot.backend.login.LoginHolder;
-import knoblul.eosvstubot.backend.login.LoginManager;
-import knoblul.eosvstubot.frontend.BotUI;
-import knoblul.eosvstubot.frontend.misc.DialogUtils;
+import knoblul.eosvstubot.backend.profile.Profile;
+import knoblul.eosvstubot.backend.profile.ProfileManager;
+import knoblul.eosvstubot.frontend.BotWindow;
+import knoblul.eosvstubot.utils.swing.DialogUtils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,12 +27,12 @@ import java.io.IOException;
  * <br>Created: 22.04.2020 10:47
  * @author Knoblul
  */
-public class LoginHolderEditDialog extends JComponent {
+public class ProfileEditDialog extends JComponent {
 	private JTextField usernameField;
 	private JPasswordField passwordField;
 	private JTextField chatPhrasesField;
 
-	public LoginHolderEditDialog() {
+	public ProfileEditDialog() {
 		fill();
 	}
 
@@ -59,7 +59,7 @@ public class LoginHolderEditDialog extends JComponent {
 //		((AbstractDocument) chatPhrasesField.getDocument()).setDocumentFilter(new SimpleDocumentFilter()
 //				.filterChar(LoginHolder.CHAT_PHRASES_DELIMITER));
 		chatPhrasesField.setToolTipText("Рандомные фразы, которые будет говорить бот" +
-				" в чате. Разделяются символом '" + LoginHolder.CHAT_PHRASES_DELIMITER + "'. ");
+				" в чате. Разделяются символом '" + Profile.CHAT_PHRASES_DELIMITER + "'. ");
 	}
 
 	public String getUsername() {
@@ -74,7 +74,7 @@ public class LoginHolderEditDialog extends JComponent {
 		return chatPhrasesField.getText().trim();
 	}
 
-	public boolean showDialog(LoginManager loginManager, LoginHolder editingHolder) {
+	public boolean showDialog(ProfileManager profileManager, Profile editingHolder) {
 		if (editingHolder != null) {
 			usernameField.setText(editingHolder.getUsername());
 			passwordField.setText(editingHolder.getPassword());
@@ -82,12 +82,12 @@ public class LoginHolderEditDialog extends JComponent {
 		} else {
 			usernameField.setText("");
 			passwordField.setText("");
-			chatPhrasesField.setText(LoginHolder.DEFAULT_CHAT_PHRASES);
+			chatPhrasesField.setText(Profile.DEFAULT_CHAT_PHRASES);
 		}
 
 		String title = editingHolder == null ? "Создать пользователя" : "Изменить данные пользователя";
 		while (true) {
-			if (JOptionPane.showConfirmDialog(BotUI.instance, this, title,
+			if (JOptionPane.showConfirmDialog(BotWindow.instance, this, title,
 					JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
 				return false;
 			}
@@ -96,13 +96,13 @@ public class LoginHolderEditDialog extends JComponent {
 			String password = getPassword();
 			String chatPhrases = getChatPhrases();
 			if (!username.isEmpty() && !password.isEmpty()) {
-				if (loginManager.getLoginHolder(username) != editingHolder) {
+				if (profileManager.getLoginHolder(username) != editingHolder) {
 					DialogUtils.showWarning("Пользователь с таким именем уже существует.");
 					continue;
 				}
 
 				boolean needsRelogin;
-				LoginHolder holder;
+				Profile holder;
 				if (editingHolder != null) {
 					holder = editingHolder;
 					// не перелогиниваем пользователя если логин и пароль не были изменены
@@ -113,7 +113,7 @@ public class LoginHolderEditDialog extends JComponent {
 						editingHolder.setCredentials(username, password);
 					}
 				} else {
-					holder = loginManager.createLoginHolder(username, password);
+					holder = profileManager.createLoginHolder(username, password);
 					holder.setChatPhrasesFromString(chatPhrases);
 					needsRelogin = true;
 				}

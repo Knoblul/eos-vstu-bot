@@ -15,7 +15,8 @@ package knoblul.eosvstubot.backend;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
-import knoblul.eosvstubot.backend.login.LoginManager;
+import knoblul.eosvstubot.backend.profile.ProfileManager;
+import knoblul.eosvstubot.backend.schedule.LessonsManager;
 import knoblul.eosvstubot.utils.Log;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -46,7 +47,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Queue;
 
 /**
  * Простое асбтрагирование основных низкоуровневых действий бота.
@@ -61,20 +62,22 @@ public class BotContext {
 	private static final int MAX_REDIRECTS = 10;
 
 	private final Thread mainThread;
-	private final LoginManager loginManager;
+	private final ProfileManager profileManager;
+	private final LessonsManager lessonsManager;
 
 	private CookieStore cookieStore;
 	private CloseableHttpClient client;
 
-	private LinkedBlockingQueue<Runnable> mainThreadCommands = Queues.newLinkedBlockingQueue();
+	private Queue<Runnable> mainThreadCommands = Queues.newConcurrentLinkedQueue();
 
 	public BotContext() {
 		mainThread = Thread.currentThread();
 		if (!mainThread.getName().equals("main")) {
-			throw new IllegalStateException("Context can be created only from main thread!");
+			throw new IllegalStateException("Context can be created only from the main thread!");
 		}
 
-		loginManager = new LoginManager(this);
+		profileManager = new ProfileManager(this);
+		lessonsManager = new LessonsManager(this);
 	}
 	
 	private void check() {
@@ -107,11 +110,16 @@ public class BotContext {
 	public void processMainThreadCommands() {
 		Log.info("Starting command processing...");
 		while (true) {
-			try {
-				Runnable command = mainThreadCommands.take();
+			Runnable command = mainThreadCommands.poll();
+			if (command != null) {
 				invokeMainThreadCommand(command);
-			} catch (InterruptedException ignored) {
-				Log.info("Stopping command processing...");
+			}
+
+			lessonsManager.update();
+
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
 				break;
 			}
 		}
@@ -125,11 +133,11 @@ public class BotContext {
 	}
 
 	/**
-	 * @return {@link #loginManager}
+	 * @return {@link #profileManager}
 	 */
-	public LoginManager getLoginManager() {
+	public ProfileManager getProfileManager() {
 		check();
-		return loginManager;
+		return profileManager;
 	}
 
 	/**
@@ -142,7 +150,8 @@ public class BotContext {
 				.setRedirectStrategy(new LaxRedirectStrategy())
 				.setDefaultCookieStore(cookieStore)
 				.build();
-		loginManager.create();
+		profileManager.create();
+		lessonsManager.create();
 	}
 
 	/**

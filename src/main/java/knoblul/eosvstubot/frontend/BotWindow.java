@@ -15,9 +15,9 @@ package knoblul.eosvstubot.frontend;
 
 import knoblul.eosvstubot.EosVstuBot;
 import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.frontend.login.LoginManagerTable;
-import knoblul.eosvstubot.frontend.misc.DialogUtils;
-import knoblul.eosvstubot.frontend.misc.TextPaneAppender;
+import knoblul.eosvstubot.frontend.profile.ProfileManagerTable;
+import knoblul.eosvstubot.utils.swing.DialogUtils;
+import knoblul.eosvstubot.utils.swing.TextPaneAppender;
 
 import javax.swing.*;
 import java.awt.*;
@@ -29,11 +29,11 @@ import java.awt.event.WindowEvent;
  * <br>Created: 21.04.2020 20:53
  * @author Knoblul
  */
-public class BotUI extends JFrame {
-	public static BotUI instance;
+public class BotWindow extends JFrame {
+	public static BotWindow instance;
 	private final BotContext context;
 
-	public BotUI(BotContext context) {
+	public BotWindow(BotContext context) {
 		instance = this;
 		this.context = context;
 
@@ -41,7 +41,7 @@ public class BotUI extends JFrame {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (Throwable ignored) { }
 
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		setTitle(EosVstuBot.NAME + " v" + EosVstuBot.VERSION);
 		setSize(800, 600);
 		setLocationRelativeTo(null);
@@ -55,7 +55,7 @@ public class BotUI extends JFrame {
 		fill();
 		setVisible(true);
 
-		if (context.getLoginManager().isSomeHoldersAreInvalid()) {
+		if (context.getProfileManager().isSomeHoldersAreInvalid()) {
 			DialogUtils.showWarning("Один или несколько пользователей не были загружены." +
 					" Смотрите консоль, чтобы узнать детали.");
 		}
@@ -65,7 +65,7 @@ public class BotUI extends JFrame {
 		setLayout(new BorderLayout());
 		JTabbedPane tabs = new JTabbedPane();
 
-		tabs.addTab("Пользователи", new LoginManagerTable(context.getLoginManager()));
+		tabs.addTab("Пользователи", new ProfileManagerTable(context.getProfileManager()));
 
 		JTextPane console = TextPaneAppender.consoleComponent;
 		console.setFont(new Font("Consolas", Font.PLAIN, 12));

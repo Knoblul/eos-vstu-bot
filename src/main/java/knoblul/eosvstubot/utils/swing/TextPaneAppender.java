@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.misc;
+package knoblul.eosvstubot.utils.swing;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.Filter;

@@ -11,11 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.login;
+package knoblul.eosvstubot.frontend.profile;
 
 import com.google.common.collect.Lists;
-import knoblul.eosvstubot.backend.login.LoginHolder;
-import knoblul.eosvstubot.backend.login.LoginManager;
+import knoblul.eosvstubot.backend.profile.Profile;
+import knoblul.eosvstubot.backend.profile.ProfileManager;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -30,18 +30,18 @@ import java.util.List;
  * <br>Created: 21.04.2020 22:34
  * @author Knoblul
  */
-public class LoginManagerTable extends JComponent {
-	private final LoginManager loginManager;
+public class ProfileManagerTable extends JComponent {
+	private final ProfileManager profileManager;
 
 	private JTable table;
-	private LoginManagerTableModel tableModel;
+	private ProfileManagerTableModel tableModel;
 
 	private JButton editButton;
 	private JButton removeButton;
-	private LoginHolderEditDialog editDialog;
+	private ProfileEditDialog editDialog;
 
-	public LoginManagerTable(LoginManager loginManager) {
-		this.loginManager = loginManager;
+	public ProfileManagerTable(ProfileManager profileManager) {
+		this.profileManager = profileManager;
 		fill();
 	}
 
@@ -56,7 +56,7 @@ public class LoginManagerTable extends JComponent {
 	}
 
 	private void addUser(ActionEvent event) {
-		if (editDialog.showDialog(loginManager, null)) {
+		if (editDialog.showDialog(profileManager, null)) {
 			tableModel.fireInsertEvent(tableModel.getRowCount()-1);
 			table.revalidate();
 		}
@@ -66,12 +66,12 @@ public class LoginManagerTable extends JComponent {
 	 * Открывает окно редактирования пользователя
 	 */
 	private void editUser(ActionEvent event) {
-		LoginHolder holder = loginManager.getLoginHolder(table.getSelectedRow());
+		Profile holder = profileManager.getLoginHolder(table.getSelectedRow());
 		if (holder == null) {
 			return;
 		}
 
-		if (editDialog.showDialog(loginManager, holder)) {
+		if (editDialog.showDialog(profileManager, holder)) {
 			tableModel.fireUpdateEvent(table.getSelectedRow());
 			table.revalidate();
 		}
@@ -82,11 +82,11 @@ public class LoginManagerTable extends JComponent {
 	 * Выбранных пользователей может быть несколько.
 	 */
 	private void removeUsers(ActionEvent event) {
-		List<LoginHolder> toRemove = Lists.newArrayList();
+		List<Profile> toRemove = Lists.newArrayList();
 		for (int i: table.getSelectedRows()) {
-			toRemove.add(loginManager.getLoginHolder(i));
+			toRemove.add(profileManager.getLoginHolder(i));
 		}
-		toRemove.forEach(loginManager::removeLoginHolder);
+		toRemove.forEach(profileManager::removeLoginHolder);
 		for (int i: table.getSelectedRows()) {
 			tableModel.fireDeleteEvent(i);
 		}
@@ -94,9 +94,9 @@ public class LoginManagerTable extends JComponent {
 	}
 
 	private void fill() {
-		editDialog = new LoginHolderEditDialog();
+		editDialog = new ProfileEditDialog();
 		table = new JTable();
-		table.setModel(tableModel = new LoginManagerTableModel(loginManager));
+		table.setModel(tableModel = new ProfileManagerTableModel(profileManager));
 		table.getSelectionModel().addListSelectionListener(this::onUserSelected);
 		table.setRowHeight(30);
 		table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
@@ -107,10 +107,10 @@ public class LoginManagerTable extends JComponent {
 						hasFocus, row, column);
 
 				// текст статуса, зеленый или черный
-				if (column == LoginManagerTableModel.COLUMN_STATUS) {
-					LoginHolder holder = loginManager.getLoginHolder(row);
+				if (column == ProfileManagerTableModel.COLUMN_STATUS) {
+					Profile holder = profileManager.getLoginHolder(row);
 					if (holder != null) {
-						label.setForeground(holder.isValid() ? Color.GREEN.darker()
+						label.setForeground(holder.isOnline() ? Color.GREEN.darker()
 								: Color.RED.darker());
 					}
 				} else {

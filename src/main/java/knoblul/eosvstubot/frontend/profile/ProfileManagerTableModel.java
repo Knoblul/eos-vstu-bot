@@ -11,10 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.login;
+package knoblul.eosvstubot.frontend.profile;
 
-import knoblul.eosvstubot.backend.login.LoginHolder;
-import knoblul.eosvstubot.backend.login.LoginManager;
+import knoblul.eosvstubot.backend.profile.Profile;
+import knoblul.eosvstubot.backend.profile.ProfileManager;
 
 import javax.swing.event.EventListenerList;
 import javax.swing.event.TableModelEvent;
@@ -26,23 +26,23 @@ import javax.swing.table.TableModel;
  * <br>Created: 21.04.2020 22:19
  * @author Knoblul
  */
-public class LoginManagerTableModel implements TableModel {
+public class ProfileManagerTableModel implements TableModel {
 	public static final int COLUMN_USERNAME = 0;
 	public static final int COLUMN_PROFILE_NAME = 1;
 	public static final int COLUMN_STATUS = 2;
 
 	private static final String[] COLUMNS = new String[] { "Логин", "Имя", "Статус" };
-	private final LoginManager loginManager;
+	private final ProfileManager profileManager;
 
 	private EventListenerList listenerList = new EventListenerList();
 
-	public LoginManagerTableModel(LoginManager loginManager) {
-		this.loginManager = loginManager;
+	public ProfileManagerTableModel(ProfileManager profileManager) {
+		this.profileManager = profileManager;
 	}
 
 	@Override
 	public int getRowCount() {
-		return loginManager.getLoginHolders().size();
+		return profileManager.getProfiles().size();
 	}
 
 	@Override
@@ -68,7 +68,7 @@ public class LoginManagerTableModel implements TableModel {
 	@Override
 	public Object getValueAt(int rowIndex, int columnIndex) {
 		if (getColumnName(columnIndex) != null) {
-			LoginHolder holder = loginManager.getLoginHolder(rowIndex);
+			Profile holder = profileManager.getLoginHolder(rowIndex);
 			if (holder != null) {
 				switch (columnIndex) {
 					case COLUMN_USERNAME:
@@ -76,7 +76,7 @@ public class LoginManagerTableModel implements TableModel {
 					case COLUMN_PROFILE_NAME:
 						return holder.getProfileName();
 					case COLUMN_STATUS:
-						return holder.isValid() ? "Действителен" : "Ошибка входа";
+						return holder.isOnline() ? "Действителен" : "Ошибка входа";
 				}
 			}
 		}

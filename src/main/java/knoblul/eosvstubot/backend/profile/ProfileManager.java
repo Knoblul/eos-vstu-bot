@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.backend.login;
+package knoblul.eosvstubot.backend.profile;
 
 import com.google.common.collect.Lists;
 import knoblul.eosvstubot.backend.BotContext;
@@ -35,7 +35,7 @@ import java.util.List;
  * <br>Created: 21.04.2020 16:49
  * @author Knoblul
  */
-public class LoginManager {
+public class ProfileManager {
 	/**
 	 * Контекст бота
 	 */
@@ -49,7 +49,7 @@ public class LoginManager {
 	/**
 	 * Список всех холдеров, зарегестрированых менеджером.
 	 */
-	private List<LoginHolder> loginHolders = Lists.newArrayList();
+	private List<Profile> profiles = Lists.newArrayList();
 
 	/**
 	 * Флаг, который сигнализирует о том, что некоторые холдеры не
@@ -57,9 +57,9 @@ public class LoginManager {
 	 */
 	private boolean someHoldersAreInvalid;
 
-	public LoginManager(BotContext context) {
+	public ProfileManager(BotContext context) {
 		this.context = context;
-		this.workDir = Paths.get("Logins");
+		this.workDir = Paths.get("Profiles");
 		if (!Files.exists(workDir)) {
 			try {
 				Files.createDirectories(workDir);
@@ -81,31 +81,31 @@ public class LoginManager {
 		return someHoldersAreInvalid;
 	}
 
-	public List<LoginHolder> getLoginHolders() {
-		return loginHolders;
+	public List<Profile> getProfiles() {
+		return profiles;
 	}
 
 	/**
 	 * Инициализирует менеджер, читает все холдеры с диска и записывает их
-	 * в список {@link #loginHolders}.
+	 * в список {@link #profiles}.
 	 */
 	public void create() {
 		Log.info("Loading logins from folder...");
 
-		loginHolders.clear();
+		profiles.clear();
 		try (DirectoryStream<Path> ds = Files.newDirectoryStream(workDir, "*.login")) {
 			for (Path file: ds) {
-				loginHolders.add(new LoginHolder(this, file));
+				profiles.add(new Profile(this, file));
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
 		Log.info("Checking logins...");
-		loginHolders.forEach(LoginHolder::check);
+		profiles.forEach(Profile::check);
 
 		someHoldersAreInvalid = false;
-		loginHolders.forEach(holder -> someHoldersAreInvalid |= !holder.isValid());
+		profiles.forEach(holder -> someHoldersAreInvalid |= !holder.isOnline());
 	}
 
 	/**
@@ -114,8 +114,8 @@ public class LoginManager {
 	 * @return холдер из списка по логину, либо <code>null</code>
 	 */
 	@Nullable
-	public LoginHolder getLoginHolder(@NotNull String username) {
-		for (LoginHolder holder: loginHolders) {
+	public Profile getLoginHolder(@NotNull String username) {
+		for (Profile holder: profiles) {
 			if (holder.getUsername().equals(username)) {
 				return holder;
 			}
@@ -129,8 +129,8 @@ public class LoginManager {
 	 * @return холдер из списка по индексу, либо <code>null</code>
 	 */
 	@Nullable
-	public LoginHolder getLoginHolder(int index) {
-		return index >= 0 && index < loginHolders.size() ? loginHolders.get(index) : null;
+	public Profile getLoginHolder(int index) {
+		return index >= 0 && index < profiles.size() ? profiles.get(index) : null;
 	}
 
 	/**
@@ -141,15 +141,15 @@ public class LoginManager {
 	 * @return новосозданный холдер
 	 */
 	@NotNull
-	public LoginHolder createLoginHolder(@NotNull String username, @NotNull String password) {
+	public Profile createLoginHolder(@NotNull String username, @NotNull String password) {
 		if (getLoginHolder(username) != null) {
 			throw new IllegalArgumentException("User with that username already exists");
 		}
 
-		Path propertiesFile = Paths.get(workDir.toString(), username + LoginHolder.LOGIN_FILE_EXT);
-		LoginHolder holder = new LoginHolder(this, propertiesFile);
+		Path propertiesFile = Paths.get(workDir.toString(), username + Profile.LOGIN_FILE_EXT);
+		Profile holder = new Profile(this, propertiesFile);
 		holder.setCredentials(username, password);
-		loginHolders.add(holder);
+		profiles.add(holder);
 		return holder;
 	}
 
@@ -157,9 +157,9 @@ public class LoginManager {
 	 * Удаляет экземпляр холдера из списка а так же данные о нем.
 	 * @param holder холдер, который необходимо удалить
 	 */
-	public void removeLoginHolder(@NotNull LoginHolder holder) {
-		if (loginHolders.remove(holder)) {
-			holder.invalidate();
+	public void removeLoginHolder(@NotNull Profile holder) {
+		if (profiles.remove(holder)) {
+			holder.delete();
 		}
 	}
 }

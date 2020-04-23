@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 22.04.2020 12:28
+ *
  * @author Knoblul
  */
 public class Lesson {
@@ -49,8 +50,18 @@ public class Lesson {
 	@PropertyField(defaultValue = DEFAULT_LESSON_DURATION)
 	private long lessonDuration;
 
-	public Lesson(Path propertiesFile) {
+	@PropertyField
+	private String name;
+
+	@PropertyField
+	private String teacher;
+
+	public Lesson() {
 		properties = new Properties();
+	}
+
+	public Lesson(Path propertiesFile) {
+		this();
 		this.propertiesFile = propertiesFile;
 		load();
 	}
@@ -65,7 +76,7 @@ public class Lesson {
 				properties.load(reader);
 				PropertiesHelper.load(Lesson.class, this, properties);
 			} catch (Throwable e) {
-				Log.warn(e,"Failed to load properties file %s", propertiesFile);
+				Log.warn(e, "Failed to load properties file %s", propertiesFile);
 			}
 		}
 	}
@@ -78,7 +89,41 @@ public class Lesson {
 			PropertiesHelper.save(Lesson.class, this, properties);
 			properties.store(writer, EosVstuBot.NAME + " Lesson File");
 		} catch (Throwable e) {
-			Log.warn(e,"Failed to save properties file %s", propertiesFile);
+			Log.warn(e, "Failed to save properties file %s", propertiesFile);
 		}
+	}
+
+	public long getScheduleTime() {
+		return scheduleTime;
+	}
+
+	public int getScheduleWeekIndex() {
+		return scheduleWeekIndex;
+	}
+
+	public void setSchedule(long scheduleTime, int scheduleWeekIndex, long lessonDuration) {
+		this.scheduleTime = scheduleTime;
+		this.scheduleWeekIndex = scheduleWeekIndex;
+		this.lessonDuration = lessonDuration;
+	}
+
+	public long getLessonDuration() {
+		return lessonDuration;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getTeacher() {
+		return teacher;
+	}
+
+	public void setTeacher(String teacher) {
+		this.teacher = teacher;
 	}
 }

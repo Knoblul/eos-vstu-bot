@@ -15,7 +15,6 @@ package knoblul.eosvstubot.backend.schedule;
 
 import com.google.common.collect.Sets;
 import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.backend.login.LoginHolder;
 import knoblul.eosvstubot.utils.Log;
 
 import java.io.IOException;
@@ -61,8 +60,43 @@ public class LessonsManager {
 		}
 	}
 
-	public void update() {
-		Calendar calendar = Calendar.getInstance();
+	public Lesson getCurrentLesson() {
+		Calendar currentCalendar = Calendar.getInstance();
+		int currentWeekIndex = currentCalendar.get(Calendar.WEEK_OF_YEAR) % 2;
+		for (Lesson lesson: lessons) {
+			Calendar lessonScheduleCalendar = Calendar.getInstance();
+			lessonScheduleCalendar.setTimeInMillis(lesson.getScheduleTime());
+			int lessonWeekIndex = lesson.getScheduleWeekIndex();
+			long lessonDuration = lesson.getLessonDuration();
 
+			Calendar lessonStartCalendar = Calendar.getInstance();
+			lessonStartCalendar.set(Calendar.DAY_OF_WEEK, lessonScheduleCalendar.get(Calendar.DAY_OF_WEEK));
+			lessonStartCalendar.set(Calendar.HOUR, lessonScheduleCalendar.get(Calendar.HOUR_OF_DAY));
+			lessonStartCalendar.set(Calendar.MINUTE, lessonScheduleCalendar.get(Calendar.MINUTE));
+			lessonStartCalendar.set(Calendar.SECOND, lessonScheduleCalendar.get(Calendar.SECOND));
+			if (currentWeekIndex != lessonWeekIndex) {
+				// если сейчас номер недели отличен от номера недели урока,
+				// то "переносим" урок на некст неделю
+				lessonStartCalendar.add(Calendar.WEEK_OF_MONTH, 1);
+			}
+
+			// находим время, которое прошло с момента конца урока.
+			// если время меньше lessonDuration, то урок идет. Если больше, то
+			// timeDifference-lessonDuration это время, которое остается до начала урока.
+			// если timeDifference меньше нуля, то урок уже прошел.
+			long timeDifference = lessonStartCalendar.getTimeInMillis() + lessonDuration
+					- currentCalendar.getTimeInMillis();
+			if (timeDifference > 0 && timeDifference < lessonDuration) {
+				return lesson;
+			}
+		}
+		return null;
+	}
+
+	public void update() {
+		Lesson lesson = getCurrentLesson();
+		if (lesson != null) {
+
+		}
 	}
 }

@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.backend.login;
+package knoblul.eosvstubot.backend.profile;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -43,7 +43,7 @@ import java.util.Properties;
  * <br>Created: 21.04.2020 13:40
  * @author Knoblul
  */
-public class LoginHolder {
+public class Profile {
 	public static final char CHAT_PHRASES_DELIMITER = '|';
 	public static final String DEFAULT_CHAT_PHRASES = "+";
 
@@ -56,7 +56,7 @@ public class LoginHolder {
 	 * Менеджер логинов, который хранит в себе экземпляр
 	 * данного холдера.
 	 */
-	private final LoginManager manager;
+	private final ProfileManager manager;
 
 	/**
 	 * Пропертиес, который хранит в себе все необходимые данные для
@@ -107,9 +107,9 @@ public class LoginHolder {
 	 * Флаг, значение которого <code>true</code> тогда, когда
 	 * вход в профиль был выполнен успешно
 	 */
-	private boolean valid;
+	private boolean online;
 
-	public LoginHolder(LoginManager manager, Path propertiesFile) {
+	public Profile(ProfileManager manager, Path propertiesFile) {
 		this.manager = manager;
 		this.properties = new Properties();
 		this.propertiesFile = propertiesFile;
@@ -157,23 +157,28 @@ public class LoginHolder {
 	 * @param password пароль
 	 */
 	public void setCredentials(@NotNull String username, @NotNull String password) {
-		// удаляем предыдущие данные
-		invalidate();
+		// удаляем данные предыдущей сессии
+		logout();
 
 		this.username = username;
 		this.password = password;
 		this.propertiesFile = Paths.get(manager.getWorkDir().toString(), username+LOGIN_FILE_EXT);
+
+		// удаляем предыдущий файл конфига
+		try {
+			Files.deleteIfExists(propertiesFile);
+		} catch (IOException ignored) { }
 	}
 
 	/**
-	 * Десериализует себя из файла
+	 * Десериализует себя из конфиг файла
 	 */
 	public void load() {
 		properties.clear();
 		if (Files.exists(propertiesFile)) {
 			try (BufferedReader reader = Files.newBufferedReader(propertiesFile)) {
 				properties.load(reader);
-				PropertiesHelper.load(LoginHolder.class, this, properties);
+				PropertiesHelper.load(Profile.class, this, properties);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -181,11 +186,11 @@ public class LoginHolder {
 	}
 
 	/**
-	 * Серализует себя в файл
+	 * Серализует себя в конфиг файл
 	 */
 	public void save() {
 		try (BufferedWriter writer = Files.newBufferedWriter(propertiesFile)) {
-			PropertiesHelper.save(LoginHolder.class, this, properties);
+			PropertiesHelper.save(Profile.class, this, properties);
 			properties.store(writer, EosVstuBot.NAME + " Login File");
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -223,8 +228,8 @@ public class LoginHolder {
 	/**
 	 * @return <code>true</code>, если сессия на момент вызова метода действительна.
 	 */
-	public boolean isValid() {
-		return valid;
+	public boolean isOnline() {
+		return online;
 	}
 
 	/**
@@ -233,10 +238,12 @@ public class LoginHolder {
 	 * данного профиля.</b>
 	 */
 	public void select() {
-		BotContext context = manager.getContext();
-		context.clearCookies();
-		context.setCookie(COOKIE_MID_NAME, cookies[0], "eos.vstu.ru", "/");
-		context.setCookie(COOKIE_SESSION_NAME, cookies[1], "eos.vstu.ru", "/");
+		if (isOnline()) {
+			BotContext context = manager.getContext();
+			context.clearCookies();
+			context.setCookie(COOKIE_MID_NAME, cookies[0], EosVstuBot.SITE_DOMAIN, "/");
+			context.setCookie(COOKIE_SESSION_NAME, cookies[1], EosVstuBot.SITE_DOMAIN, "/");
+		}
 	}
 
 	/**
@@ -267,18 +274,30 @@ public class LoginHolder {
 	}
 
 	/**
-	 * Инвалидирует данный профиль. Все данные, которые он хранил будут удалены.
-	 * Так же файл сериализации будет удален.
+	 * Инвалидирует данный профиль. Все данные сессии, которые он хранил
+	 * будут удалены.
 	 */
-	public void invalidate() {
-		valid = false;
+	public void logout() {
+		// отмечаем что сессия отсутсвует
+		online = false;
+		// обнуляем имя профиля, ссылку профиля и куки
+		profileName = null;
+		profileLink = null;
+		cookies = new String[2];
+	}
+
+	/**
+	 * Удаляет сессионные данные профиля, файл конфига и
+	 * очищает пропертиес.
+	 */
+	public void delete() {
+		logout();
+
+		// удаляем файл конфига и обнуляем пропертиес
 		properties.clear();
 		try {
 			Files.deleteIfExists(propertiesFile);
 		} catch (IOException ignored) { }
-		profileName = null;
-		profileLink = null;
-		cookies = new String[2];
 	}
 
 	/**
@@ -287,23 +306,24 @@ public class LoginHolder {
 	 */
 	public void check() {
 		try {
+			// выбираем этот профиль для проверки
 			select();
+			// отправляем гет запрос на главную страницу
 			BotContext context = manager.getContext();
-			HttpGet request = context.buildGetRequest(EosVstuBot.SITE + "/index.php", null);
+			String checkURI = "http://" + EosVstuBot.SITE_DOMAIN + "/index.php";
+			HttpGet request = context.buildGetRequest(checkURI, null);
 			Document document = context.executeRequestAndParseResponse(request);
-			parseProfile(document);
+			parseProfile(document); // парсим главную страницу
 			Log.info("%s check success", username);
-			valid = true;
+			online = true;
 		} catch (IOException e) {
 			// фоллбек стратегия - логинемся на сайте заново.
 			Log.warn(e.getMessage().equalsIgnoreCase("Invalid login") ? null : e,
 					"%s check failed. Logging in...", username);
 			try {
 				login();
-				valid = true;
 			} catch (IOException x) {
 				Log.error(x,"%s login failed. Holder is invalid.", username);
-				valid = false;
 			}
 		}
 	}
@@ -316,28 +336,35 @@ public class LoginHolder {
 	 * @throws IOException если произошла ошибка
 	 */
 	public void login() throws IOException {
-		if (isValid()) {
-			invalidate();
+		if (isOnline()) {
+			// удаляем сессионные данные профиля
+			logout();
 		}
 
 		try {
 			BotContext context = manager.getContext();
 
+			// очищаем все куки перед входом
 			context.clearCookies();
 
+			String loginURI = "http://" + EosVstuBot.SITE_DOMAIN + "/login/index.php";
 			Map<String, String> params = Maps.newHashMap();
 			params.put("username", username);
 			params.put("password", password);
 			params.put("rememberusername", "1");
 			params.put("anchor", "");
-			HttpPost request = context.buildPostRequest(EosVstuBot.SITE + "/login/index.php", params);
+			HttpPost request = context.buildPostRequest(loginURI, params);
 			Document document = context.executeRequestAndParseResponse(request);
 
+			// парсим примечание (обычно отображается если пользователь
+			// уже авторизирован)
 			String notice = document.select("#page #page-content #region-main #notice p").text();
 			if (!Strings.isNullOrEmpty(notice)) {
 				throw new IOException(notice);
 			}
 
+			// парсим ошибку входа (обычно отображается если
+			// сайтом выявлена ошибка входа, напр. неверный логин или пароль)
 			String loginErrorMessage =
 					document.select("#page #page-content #region-main div.loginpanel div.loginerrors a")
 							.text();
@@ -345,6 +372,8 @@ public class LoginHolder {
 				throw new IOException(loginErrorMessage);
 			}
 
+			// после успешного входа происходит редирект на главную.
+			// парсим имя профиля и ссылку профиля с главной страницы
 			parseProfile(document);
 
 			// сохраняем значение сессионных куки, которые возвратил сайт
@@ -352,7 +381,7 @@ public class LoginHolder {
 			cookies[1] = context.getCookieValue(COOKIE_SESSION_NAME);
 
 			Log.info("%s (%s) successfully logged in", username, profileName);
-			valid = true;
+			online = true;
 		} finally {
 			save();
 		}
