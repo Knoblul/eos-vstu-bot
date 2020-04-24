@@ -16,6 +16,7 @@
 package knoblul.eosvstubot.frontend.schedule;
 
 import knoblul.eosvstubot.backend.schedule.Lesson;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -46,7 +47,7 @@ class ScheduleTableRenderer extends DefaultTableCellRenderer {
 			calendar.setTimeInMillis(lesson.getScheduleTime());
 			switch (modelColumn) {
 				case ScheduleTableModel.COLUMN_DAY_OF_WEEK:
-					label.setText(ScheduleComponent.WEEKDAY_NAMES[calendar.get(Calendar.DAY_OF_WEEK)]);
+					label.setText(StringUtils.capitalize(ScheduleComponent.WEEKDAY_NAMES[calendar.get(Calendar.DAY_OF_WEEK)]));
 					break;
 				case ScheduleTableModel.COLUMN_TIME:
 					label.setText(String.format("%02d:%02d:%02d",

@@ -15,12 +15,20 @@
  */
 package knoblul.eosvstubot.backend;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import knoblul.eosvstubot.backend.chat.ChatSession;
 import knoblul.eosvstubot.backend.profile.ProfileManager;
 import knoblul.eosvstubot.backend.schedule.LessonsManager;
+import knoblul.eosvstubot.frontend.BotWindow;
 import knoblul.eosvstubot.utils.Log;
-import org.apache.http.Header;
+import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
 import org.apache.http.StatusLine;
@@ -32,25 +40,32 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.impl.cookie.BasicClientCookie;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.Future;
 
 /**
  * Простое асбтрагирование основных низкоуровневых действий бота.
@@ -62,16 +77,20 @@ import java.util.Queue;
  * @author Knoblul
  */
 public class BotContext {
-	private static final int MAX_REDIRECTS = 10;
+	public static final Gson GSON = new GsonBuilder().setPrettyPrinting().setLenient().create();
 
-	private final Thread mainThread;
+	private static final int MAX_HTTP_REDIRECTS = 10;
+
+	public final Thread mainThread;
 	private final ProfileManager profileManager;
 	private final LessonsManager lessonsManager;
 
 	private CookieStore cookieStore;
 	private CloseableHttpClient client;
+	private CloseableHttpAsyncClient asyncClient;
 
 	private Queue<Runnable> mainThreadCommands = Queues.newConcurrentLinkedQueue();
+	private Map<URI, ChatSession> chatSessions = Maps.newHashMap();
 
 	public BotContext() {
 		mainThread = Thread.currentThread();
@@ -110,15 +129,15 @@ public class BotContext {
 	 * команд из очереди.
 	 * Основное назначение - блокирование текущего потока и ожидание команд.
 	 */
-	public void processMainThreadCommands() {
+	public void occupyMainThread() {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+
 		Log.info("Command processing started");
 		while (true) {
-			Runnable command = mainThreadCommands.poll();
-			if (command != null) {
-				invokeMainThreadCommand(command);
-			}
-
-			lessonsManager.update();
+			update();
 
 			try {
 				Thread.sleep(1);
@@ -129,10 +148,46 @@ public class BotContext {
 		}
 	}
 
+	public void update() {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+
+		Runnable command = mainThreadCommands.poll();
+		if (command != null) {
+			invokeMainThreadCommand(command);
+		}
+
+		chatSessions.values().forEach(ChatSession::update);
+
+		if (BotWindow.instance != null) {
+			BotWindow.instance.update();
+		}
+	}
+
+	public ChatSession createChatSession(String chatLink) {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+		return chatSessions.computeIfAbsent(URI.create(chatLink), (k) -> new ChatSession(this, chatLink));
+	}
+
+	public void destroyChatSession(ChatSession session) {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+		chatSessions.values().remove(session);
+		session.close();
+	}
+
 	/**
 	 * Говорит основному потоку перестать обрабатывать команды.
 	 */
 	public void stopMainThreadCommandsProcessing() {
+		check();
 		mainThread.interrupt();
 	}
 
@@ -158,47 +213,27 @@ public class BotContext {
 	 */
 	public void create() {
 		cookieStore = new BasicCookieStore();
+
 		client = HttpClientBuilder.create()
 				.setRedirectStrategy(new LaxRedirectStrategy())
 				.setDefaultCookieStore(cookieStore)
 				.build();
+
+		asyncClient = HttpAsyncClientBuilder.create()
+				.setRedirectStrategy(new LaxRedirectStrategy())
+				.setDefaultCookieStore(cookieStore)
+				.build();
+
+		asyncClient.start();
 	}
 
 	public void loadManagers() {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
 		profileManager.load();
 		lessonsManager.load();
-	}
-
-	/**
-	 * Выполняет указанный запрос и возвращает страницу в виде {@link Document},
-	 * готовую для парсинга.
-	 *
-	 * @param request экземпляр настроенного запроса
-	 * @return страницу в виде {@link Document}, готовую для парсинга.
-	 * @throws IOException при возникновении ошибки во время получения/разбора ответа.
-	 */
-	@NotNull
-	public Document executeRequestAndParseResponse(@NotNull HttpUriRequest request) throws IOException {
-		check();
-
-		try (CloseableHttpResponse response = client.execute(request)) {
-			StatusLine statusLine = response.getStatusLine();
-			if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
-				throw new IOException("Invalid status: " + statusLine.getStatusCode() + " "
-						+ statusLine.getReasonPhrase());
-			}
-			Header contentTypeHeader = response.getEntity().getContentType();
-			if (contentTypeHeader == null) {
-				throw new IOException("'Content-Type' in response header is not specified");
-			}
-
-			String contentType = contentTypeHeader.getValue();
-			if (!contentType.toLowerCase().contains("text/html")) {
-				throw new IOException("Invalid 'Content-Type': " + contentType);
-			}
-
-			return Jsoup.parse(response.getEntity().getContent(), "UTF-8", request.getURI().toString());
-		}
 	}
 
 	/**
@@ -206,6 +241,9 @@ public class BotContext {
 	 */
 	public void clearCookies() {
 		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
 		cookieStore.clear();
 	}
 
@@ -217,6 +255,9 @@ public class BotContext {
 	@Nullable
 	public Cookie getCookie(@NotNull String name) {
 		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
 
 		for (Cookie cookie: cookieStore.getCookies()) {
 			if (cookie.getName().equals(name)) {
@@ -234,6 +275,10 @@ public class BotContext {
 	@Nullable
 	public String getCookieValue(@NotNull String name) {
 		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+
 		Cookie cookie = getCookie(name);
 		return cookie != null ? cookie.getValue() : null;
 	}
@@ -248,6 +293,9 @@ public class BotContext {
 	 */
 	public void setCookie(@NotNull String name, @Nullable Object value, @NotNull String domain, @NotNull String path) {
 		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
 
 		BasicClientCookie cookie = new BasicClientCookie(name, value == null ? "" : value.toString());
 		cookie.setDomain(domain);
@@ -261,34 +309,32 @@ public class BotContext {
 	/**
 	 * Создает новый GET-запрос, готовый для выполнения.
 	 * @param uri юрл запроса
-	 * @param values параметры запроса
+	 * @param params параметры запроса, которые добавляются к GET-параметрам юрл.
 	 * @return новый GET-запрос, готовый для выполнения.
 	 */
 	@NotNull
-	public HttpGet buildGetRequest(@NotNull String uri, @Nullable Map<String, String> values) {
+	public HttpUriRequest buildGetRequest(@NotNull String uri, @Nullable Map<String, String> params) {
 		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
 
 		RequestConfig config = RequestConfig.copy(RequestConfig.DEFAULT)
 				.setRedirectsEnabled(true)
 				.setRelativeRedirectsAllowed(true)
 				.setCircularRedirectsAllowed(true)
-				.setMaxRedirects(MAX_REDIRECTS)
+				.setMaxRedirects(MAX_HTTP_REDIRECTS)
 				.build();
 
-		List<NameValuePair> params = Lists.newArrayList();
-		if (values != null) {
-			values.forEach((k, v) -> params.add(new BasicNameValuePair(k, v)));
+		List<NameValuePair> nameValuePairs = Lists.newArrayList(URLEncodedUtils.parse(URI.create(uri), Charsets.UTF_8));
+		if (params != null) {
+			params.forEach((k, v) -> nameValuePairs.add(new BasicNameValuePair(k, v)));
 		}
 
 		try {
-			HttpGet request;
-			if (params.isEmpty()) {
-				request = new HttpGet(uri);
-			} else {
-				URIBuilder uriBuilder = new URIBuilder(uri);
-				uriBuilder.setParameters(params);
-				request = new HttpGet(uriBuilder.build());
-			}
+			URIBuilder uriBuilder = new URIBuilder(uri);
+			uriBuilder.setParameters(nameValuePairs);
+			HttpGet request = new HttpGet(uriBuilder.build());
 			request.setConfig(config);
 			return request;
 		} catch (URISyntaxException e) {
@@ -299,33 +345,185 @@ public class BotContext {
 	/**
 	 * Создает новый POST-запрос, готовый для выполнения.
 	 * @param uri юрл запроса
-	 * @param values параметры запроса
+	 * @param postParams параметры запроса, которые передаются в теле POST-запроса
 	 * @return новый POST-запрос, готовый для выполнения.
 	 */
 	@NotNull
-	public HttpPost buildPostRequest(@NotNull String uri, @Nullable Map<String, String> values) {
+	public HttpUriRequest buildPostRequest(@NotNull String uri, @Nullable Map<String, String> postParams) {
 		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
 
 		RequestConfig config = RequestConfig.copy(RequestConfig.DEFAULT)
 				.setRedirectsEnabled(true)
 				.setRelativeRedirectsAllowed(true)
 				.setCircularRedirectsAllowed(true)
-				.setMaxRedirects(MAX_REDIRECTS)
+				.setMaxRedirects(MAX_HTTP_REDIRECTS)
 				.build();
 
-		List<NameValuePair> params = Lists.newArrayList();
-		if (values != null) {
-			values.forEach((k, v) -> params.add(new BasicNameValuePair(k, v)));
+		List<NameValuePair> encodedParams = Lists.newArrayList();
+		if (postParams != null) {
+			postParams.forEach((k, v) -> encodedParams.add(new BasicNameValuePair(k, v)));
 		}
 
 		HttpPost request = new HttpPost(uri);
 		request.setConfig(config);
 		try {
-			request.setEntity(new UrlEncodedFormEntity(params));
+			request.setEntity(new UrlEncodedFormEntity(encodedParams));
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException(e);
 		}
 		return request;
+	}
+
+	/**
+	 * Выполняет указанный запрос и возвращает ответ в типе, который указан с помощью
+	 * класса expectedResponseClass. Виды типов {@link Document}, {@link JsonElement}.
+	 * Если тип не относится к этим видам, метод выкинет IllegalArgumentException
+	 *
+	 * @param request экземпляр настроенного запроса
+	 * @param expectedResponseClass класс, указывающий на вид типа.
+	 * @param <T> вид типа {@link Document} или {@link JsonElement}.
+	 * @return страницу в виде {@link Document}, готовую для парсинга.
+	 * @throws IOException при возникновении ошибки во время получения/разбора ответа.
+	 * @throws IllegalArgumentException при неверном указании типа
+	 */
+	@NotNull
+	public <T> T executeRequest(@NotNull HttpUriRequest request, Class<T> expectedResponseClass) throws IOException {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+
+		try (CloseableHttpResponse response = client.execute(request)) {
+			StatusLine statusLine = response.getStatusLine();
+			if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
+				throw new IOException("Invalid status: " + statusLine.getStatusCode() + " "
+						+ statusLine.getReasonPhrase());
+			}
+
+			/*Header contentTypeHeader = response.getEntity().getContentType();
+			String contentType = contentTypeHeader != null ? contentTypeHeader.getValue() : null;
+			boolean jsonContentType = StringUtils.containsIgnoreCase(contentType, "application/json");*/
+
+			StringBuilder content = new StringBuilder();
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent(),
+					Charsets.UTF_8))) {
+				String ln;
+				while ((ln = reader.readLine()) != null) {
+					content.append(ln);
+				}
+			}
+
+			if (Document.class.isAssignableFrom(expectedResponseClass)) {
+				try {
+					return expectedResponseClass.cast(Jsoup.parse(content.toString(), ""));
+				} catch (Throwable t) {
+					throw new IOException(content.toString(), t);
+				}
+			} else if (/*jsonContentType || */JsonElement.class.isAssignableFrom(expectedResponseClass)) {
+				try {
+					return GSON.fromJson(content.toString(), expectedResponseClass);
+				} catch (JsonParseException e) {
+					throw new IOException(content.toString(), e);
+				}
+			} else if (String.class.isAssignableFrom(expectedResponseClass)) {
+				return expectedResponseClass.cast(content.toString());
+			}
+
+			throw new IllegalArgumentException("Excpected response class is invalid: "
+					+ expectedResponseClass);
+		}
+	}
+
+	/**
+	 * Асинхронно выполняет указанный запрос и возвращает {@link Future} запроса.
+	 * Тип колббека указан с помощью класса expectedResponseClass. Виды типов {@link Document}, {@link JsonElement}.
+	 * Если тип не относится к этим видам, коллбек зафейлится с IllegalArgumentException.
+	 * Для коллбека написан декоратор, который позволит получать переданному коллбеку при успехе не сырой ответ от
+	 * HTTP клиента а объект в указанном виде.
+	 *
+	 * @param request экземпляр настроенного запроса
+	 * @param expectedResponseClass класс, указывающий на вид типа.
+	 * @param responseCallback коллбек, который вызывается HTTP клиентом
+	 *                           после получения ответа или ошибки
+	 * @param <T> вид типа {@link Document} или {@link JsonElement}.
+	 * @return {@link Future} запроса
+	 */
+	public <T> Future<HttpResponse> executeRequestAsync(@NotNull HttpUriRequest request, Class<T> expectedResponseClass,
+														FutureCallback<T> responseCallback) {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+
+		Exception callStackTrace = new Exception("Call stack trace");
+		// добавил декоратор, чтобы получать не "сырые" ответы в коллбеках
+		return asyncClient.execute(request, new FutureCallback<HttpResponse>() {
+			@Override
+			public void completed(HttpResponse result) {
+				// чтобы коллбек "фейлился" при статусе, отличном от 200 OK
+				StatusLine statusLine = result.getStatusLine();
+				if (statusLine.getStatusCode() != HttpStatus.SC_OK) {
+					failed(new IOException("Invalid status: " + statusLine.getStatusCode() + " "
+							+ statusLine.getReasonPhrase()));
+					return;
+				}
+
+				/*Header contentTypeHeader = result.getEntity().getContentType();
+				String contentType = contentTypeHeader != null ? contentTypeHeader.getValue() : null;
+				boolean jsonContentType = StringUtils.containsIgnoreCase(contentType, "application/json");*/
+
+				StringBuilder content = new StringBuilder();
+				try (BufferedReader reader = new BufferedReader(new InputStreamReader(result.getEntity().getContent(),
+						Charsets.UTF_8))) {
+					String ln;
+					while ((ln = reader.readLine()) != null) {
+						content.append(ln);
+					}
+				} catch (IOException e) {
+					failed(e);
+					return;
+				}
+
+				T obj;
+				if (Document.class.isAssignableFrom(expectedResponseClass)) {
+					try {
+						obj = expectedResponseClass.cast(Jsoup.parse(content.toString(), ""));
+					} catch (Exception e) {
+						failed(new IOException(content.toString(), e));
+						return;
+					}
+				} else if (/*jsonContentType || */JsonElement.class.isAssignableFrom(expectedResponseClass)) {
+					try {
+						obj = GSON.fromJson(content.toString(), expectedResponseClass);
+					} catch (JsonParseException e) {
+						failed(new IOException(content.toString(), e));
+						return;
+					}
+				} else if (String.class.isAssignableFrom(expectedResponseClass)) {
+					obj = expectedResponseClass.cast(content.toString());
+				} else {
+					failed(new IllegalArgumentException("Expected response class is invalid: "
+							+ expectedResponseClass));
+					return;
+				}
+
+				responseCallback.completed(obj);
+			}
+
+			@Override
+			public void failed(Exception ex) {
+				callStackTrace.initCause(ex);
+				responseCallback.failed(callStackTrace);
+			}
+
+			@Override
+			public void cancelled() {
+				responseCallback.cancelled();
+			}
+		});
 	}
 
 	/**
@@ -338,6 +536,13 @@ public class BotContext {
 				client.close();
 			} catch (IOException ignored) {  }
 			client = null;
+		}
+
+		if (asyncClient != null) {
+			try {
+				asyncClient.close();
+			} catch (IOException ignored) { }
+			asyncClient = null;
 		}
 	}
 }

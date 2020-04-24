@@ -33,6 +33,7 @@ public class ScheduleComponent extends JComponent {
 	private final LessonsManager lessonsManager;
 
 	private JLabel currentWeekLabel;
+	private long lastWeekUpdateLabelTime;
 
 	public ScheduleComponent(LessonsManager lessonsManager) {
 		this.lessonsManager = lessonsManager;
@@ -40,7 +41,15 @@ public class ScheduleComponent extends JComponent {
 	}
 
 	private void updateWeekLabel() {
-		currentWeekLabel.setText("Текущая неделя: " + (lessonsManager.getCurrentWeekIndex()+1));
+		currentWeekLabel.setText("Автоматич. - текущая неделя: " + (lessonsManager.getCurrentWeekIndex()+1) + ",");
+	}
+
+	public void update() {
+		long time = System.currentTimeMillis();
+		if (time > lastWeekUpdateLabelTime + 10000) {
+			updateWeekLabel();
+			lastWeekUpdateLabelTime = time;
+		}
 	}
 
 	private void fill() {
@@ -56,7 +65,7 @@ public class ScheduleComponent extends JComponent {
 
 		JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		bottomPanel.add(currentWeekLabel = new JLabel());
-		bottomPanel.add(new JLabel("Год начался с недели:"));
+		bottomPanel.add(new JLabel("смещение рассчета:"));
 		JSpinner spinner = new JSpinner(new SpinnerNumberModel(BotConfig.instance.getFirstWeekOfYearIndex(),
 				1, 2, 1));
 		spinner.addChangeListener((e) -> {

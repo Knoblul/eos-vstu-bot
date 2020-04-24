@@ -17,7 +17,9 @@ package knoblul.eosvstubot.backend.schedule;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import knoblul.eosvstubot.backend.BotContext;
 import knoblul.eosvstubot.utils.BotConfig;
 import knoblul.eosvstubot.utils.Log;
@@ -39,44 +41,42 @@ import java.util.Map;
  * @author Knoblul
  */
 public class LessonsManager {
-	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
 	private final BotContext context;
-	private final Path lessonsFile;
+	private final Path scheduleFile;
 
 	private Map<Integer, List<Lesson>> lessons = Maps.newHashMap();
 
 	public LessonsManager(BotContext context) {
 		this.context = context;
-		this.lessonsFile = Paths.get("lessons.json");
+		this.scheduleFile = Paths.get("schedule.json");
 	}
 
 	public void load() {
 		Log.info("Loading lesson schedule...");
 
 		lessons.clear();
-		if (Files.exists(lessonsFile)) {
-			try (BufferedReader reader = Files.newBufferedReader(lessonsFile)) {
-				JsonArray array = GSON.fromJson(reader, JsonArray.class);
+		if (Files.exists(scheduleFile)) {
+			try (BufferedReader reader = Files.newBufferedReader(scheduleFile)) {
+				JsonArray array = BotContext.GSON.fromJson(reader, JsonArray.class);
 				if (array != null) {
 					for (JsonElement element : array) {
-						Lesson lesson = GSON.fromJson(element, Lesson.class);
+						Lesson lesson = BotContext.GSON.fromJson(element, Lesson.class);
 						getWeekLessons(lesson.getWeekIndex()).add(lesson);
 					}
 				}
 			} catch (IOException | JsonParseException e) {
-				Log.warn(e, "Failed to load %s", lessonsFile);
+				Log.warn(e, "Failed to load %s", scheduleFile);
 			}
 		}
 	}
 
 	public void save() {
-		try (BufferedWriter writer = Files.newBufferedWriter(lessonsFile)) {
+		try (BufferedWriter writer = Files.newBufferedWriter(scheduleFile)) {
 			JsonArray array = new JsonArray();
-			lessons.forEach((k, v) -> v.forEach(lesson -> array.add(GSON.toJsonTree(lesson))));
-			GSON.toJson(array, writer);
+			lessons.forEach((k, v) -> v.forEach(lesson -> array.add(BotContext.GSON.toJsonTree(lesson))));
+			BotContext.GSON.toJson(array, writer);
 		} catch (IOException | JsonParseException e) {
-			Log.warn(e, "Failed to save %s", lessonsFile);
+			Log.warn(e, "Failed to save %s", scheduleFile);
 		}
 	}
 
@@ -125,13 +125,6 @@ public class LessonsManager {
 	public Lesson getLesson(int weekIndex, int lessonIndex) {
 		List<Lesson> lessons = getWeekLessons(weekIndex);
 		return lessonIndex >= 0 && lessonIndex < lessons.size() ? lessons.get(lessonIndex) : null;
-	}
-
-	public void update() {
-		Lesson lesson = getCurrentLesson();
-		if (lesson != null) {
-
-		}
 	}
 
 	public int getCurrentWeekIndex() {

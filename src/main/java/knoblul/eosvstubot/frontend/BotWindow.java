@@ -36,6 +36,7 @@ import java.awt.event.WindowEvent;
 public class BotWindow extends JFrame {
 	public static BotWindow instance;
 	private final BotContext context;
+	private ScheduleComponent scheduleComponent;
 
 	public BotWindow(BotContext context) {
 		instance = this;
@@ -45,7 +46,7 @@ public class BotWindow extends JFrame {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (Throwable ignored) { }
 
-		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		setTitle(EosVstuBot.NAME + " v" + EosVstuBot.VERSION);
 		setSize(800, 600);
 		setLocationRelativeTo(null);
@@ -71,10 +72,14 @@ public class BotWindow extends JFrame {
 		setLayout(new BorderLayout());
 		JTabbedPane tabs = new JTabbedPane();
 		tabs.addTab("Пользователи", new ProfileTable(context.getProfileManager()));
-		tabs.addTab("Расписание", new ScheduleComponent(context.getLessonsManager()));
+		tabs.addTab("Расписание", scheduleComponent = new ScheduleComponent(context.getLessonsManager()));
 		tabs.addTab("Консоль", new JScrollPane(TextPaneAppender.consoleComponent, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
 				JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED));
 		add(tabs, BorderLayout.CENTER);
+	}
+
+	public void update() {
+		scheduleComponent.update();
 	}
 }
 

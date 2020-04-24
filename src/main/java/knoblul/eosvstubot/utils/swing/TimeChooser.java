@@ -16,7 +16,10 @@
 package knoblul.eosvstubot.utils.swing;
 
 import javax.swing.*;
+import java.awt.*;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
 
 /**
  * <br><br>Module: eos-vstu-bot
@@ -85,5 +88,15 @@ public class TimeChooser extends JComponent {
 	public long getTimeMillis() {
 		return TimeUnit.SECONDS.toMillis((getHour() * 60 + getMinute())
 				* 60 + getSecond());
+	}
+
+	@Override
+	public void setToolTipText(String text) {
+		super.setToolTipText(text);
+		for (Component component: getComponents()) {
+			if (component instanceof JComponent) {
+				((JComponent) component).setToolTipText(text);
+			}
+		}
 	}
 }

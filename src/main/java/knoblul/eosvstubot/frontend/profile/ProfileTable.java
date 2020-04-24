@@ -56,14 +56,13 @@ public class ProfileTable extends JComponent {
 	}
 
 	private void addProfile(ActionEvent event) {
-		if (editDialog.showDialog(profileManager, null)) {
-			int row = tableModel.getRowCount()-1;
+		editDialog.showDialog(profileManager, null, () -> {
+			int row = tableModel.getRowCount() - 1;
 			tableModel.fireTableRowsInserted(row, row);
 			table.revalidate();
-
 			row = table.convertRowIndexToView(row);
 			table.setRowSelectionInterval(row, row);
-		}
+		});
 	}
 
 	/**
@@ -75,14 +74,13 @@ public class ProfileTable extends JComponent {
 			return;
 		}
 
-		if (editDialog.showDialog(profileManager, profile)) {
-			int row = tableModel.getRowCount()-1;
+		editDialog.showDialog(profileManager, profile, () -> {
+			int row = tableModel.getRowCount() - 1;
 			tableModel.fireTableRowsUpdated(row, row);
 			table.revalidate();
-
 			row = table.convertRowIndexToView(row);
 			table.setRowSelectionInterval(row, row);
-		}
+		});
 	}
 
 	/**

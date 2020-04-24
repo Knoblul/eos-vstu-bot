@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Knoblul
  */
-public class HttpTest {
+public class ScheduleGeneratorTest {
 	public static void main(String[] args) throws IOException {
 		Log.info("Starting schedule generation...");
 		Stopwatch sw = Stopwatch.createStarted();
@@ -43,7 +43,6 @@ public class HttpTest {
 			Profile profile = new Profile();
 			profile.setCredentials("user", "pass");
 			context.getProfileManager().loginProfile(profile);
-
 			VolgasuScheduleGenerator.generateScheduleJson(context, "2%3B3%3B61", writer);
 		} finally {
 			context.destroy();

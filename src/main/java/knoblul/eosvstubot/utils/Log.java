@@ -69,6 +69,10 @@ public class Log {
 		log(Level.ERROR, t, msg, args);
 	}
 
+	public static void error(Throwable t) {
+		log(Level.ERROR, t, "");
+	}
+
 	public static void error(String msg, Object... args) {
 		error(null, msg, args);
 	}

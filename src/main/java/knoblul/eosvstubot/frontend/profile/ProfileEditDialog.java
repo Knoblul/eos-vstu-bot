@@ -19,6 +19,7 @@ import knoblul.eosvstubot.backend.profile.Profile;
 import knoblul.eosvstubot.backend.profile.ProfileManager;
 import knoblul.eosvstubot.frontend.BotWindow;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
+import knoblul.eosvstubot.utils.swing.TimeChooser;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,12 +28,14 @@ import java.io.IOException;
 /**
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 22.04.2020 10:47
+ *
  * @author Knoblul
  */
 class ProfileEditDialog extends JComponent {
 	private JTextField usernameField;
 	private JPasswordField passwordField;
 	private JTextField chatPhrasesField;
+	private TimeChooser lateTimeChooser;
 
 	ProfileEditDialog() {
 		fill();
@@ -44,24 +47,51 @@ class ProfileEditDialog extends JComponent {
 		GridBagConstraints gbc = new GridBagConstraints();
 		gbc.insets.set(2, 2, 2, 2);
 		gbc.gridy = 0;
-		add(new JLabel("Логин"), gbc);
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-		add(usernameField = new JTextField(20), gbc);
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.gridy++;
-		add(new JLabel("Пароль"), gbc);
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-		add(passwordField = new JPasswordField("", 20), gbc);
 
 		gbc.fill = GridBagConstraints.NONE;
-		gbc.gridy++;
-		add(new JLabel("Фразы"), gbc);
+		gbc.anchor = GridBagConstraints.WEST;
+		add(new JLabel("Логин"), gbc);
+		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1;
+		add(usernameField = new JTextField(20), gbc);
+		usernameField.setToolTipText("Логин профиля eos.vstu.ru");
+		gbc.weightx = 0;
+		gbc.gridy++;
+
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.anchor = GridBagConstraints.WEST;
+		add(new JLabel("Пароль"), gbc);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1;
+		add(passwordField = new JPasswordField("", 20), gbc);
+		passwordField.setToolTipText("Пароль профиля eos.vstu.ru");
+		gbc.weightx = 0;
+		gbc.gridy++;
+
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.anchor = GridBagConstraints.WEST;
+		add(new JLabel("Фразы"), gbc);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1;
 		add(chatPhrasesField = new JTextField(20), gbc);
-//		((AbstractDocument) chatPhrasesField.getDocument()).setDocumentFilter(new SimpleDocumentFilter()
-//				.filterChar(LoginHolder.CHAT_PHRASES_DELIMITER));
 		chatPhrasesField.setToolTipText("Рандомные фразы, которые будет говорить бот" +
 				" в чате. Разделяются символом '" + Profile.CHAT_PHRASES_DELIMITER + "'. ");
+		gbc.weightx = 0;
+		gbc.gridy++;
+
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.anchor = GridBagConstraints.WEST;
+		add(new JLabel("Макс. опоздание"), gbc);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1;
+		add(lateTimeChooser = new TimeChooser(), gbc);
+		lateTimeChooser.setToolTipText("Максимальное время, на которое может опоздать бот (от нуля до указанного)");
+		gbc.weightx = 0;
+		gbc.gridy++;
 	}
 
 	String getUsername() {
@@ -76,28 +106,28 @@ class ProfileEditDialog extends JComponent {
 		return chatPhrasesField.getText().trim();
 	}
 
-	boolean showDialog(ProfileManager profileManager, Profile editingProfile) {
+	void showDialog(ProfileManager profileManager, Profile editingProfile, Runnable swingUpdateCallback) {
 		if (editingProfile != null) {
 			usernameField.setText(editingProfile.getUsername());
 			passwordField.setText(editingProfile.getPassword());
 			chatPhrasesField.setText(editingProfile.getChatPhrasesAsString());
+			lateTimeChooser.setTimeMillis(editingProfile.getMaximumLateTime());
 		} else {
 			usernameField.setText("");
 			passwordField.setText("");
-			chatPhrasesField.setText(String.join(""+Profile.CHAT_PHRASES_DELIMITER,
+			chatPhrasesField.setText(String.join("" + Profile.CHAT_PHRASES_DELIMITER,
 					Profile.DEFAULT_CHAT_PHRASES));
+			lateTimeChooser.setTimeMillis(Profile.DEFAULT_MAXIMUM_LATE_TIME);
 		}
 
 		String title = editingProfile == null ? "Создать пользователя" : "Изменить данные пользователя";
-		while (true) {
-			if (JOptionPane.showConfirmDialog(BotWindow.instance, this, title,
-					JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
-				return false;
-			}
+		while (JOptionPane.showConfirmDialog(BotWindow.instance, this, title,
+				JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
 
 			String username = getUsername();
 			String password = getPassword();
 			String chatPhrases = getChatPhrases();
+			long lateTime = lateTimeChooser.getTimeMillis();
 			if (!username.isEmpty() && !password.isEmpty()) {
 				Profile listedProfile = profileManager.getProfile(username);
 				if (listedProfile != null && listedProfile != editingProfile) {
@@ -105,33 +135,39 @@ class ProfileEditDialog extends JComponent {
 					continue;
 				}
 
-				boolean needsLogin;
-				Profile profile;
-				if (editingProfile != null) {
-					profile = editingProfile;
-					// не перелогиниваем пользователя если логин и пароль не были изменены
-					needsLogin = !editingProfile.getUsername().equals(username) ||
-							!editingProfile.getPassword().equals(password);
-					editingProfile.setChatPhrasesFromString(chatPhrases);
-					if (needsLogin) {
-						profileManager.logoutProfile(profile);
-						editingProfile.setCredentials(username, password);
+				profileManager.getContext().invokeMainThreadCommand(() -> {
+					boolean needsLogin;
+					Profile profile;
+					if (editingProfile != null) {
+						profile = editingProfile;
+						// не перелогиниваем пользователя если логин и пароль не были изменены
+						needsLogin = !editingProfile.getUsername().equals(username) ||
+								!editingProfile.getPassword().equals(password);
+						if (needsLogin) {
+							profileManager.logoutProfile(profile);
+							editingProfile.setCredentials(username, password);
+						}
+					} else {
+						profile = profileManager.createProfile(username, password);
+						needsLogin = true;
 					}
-				} else {
-					profile = profileManager.createProfile(username, password);
-					profile.setChatPhrasesFromString(chatPhrases);
-					needsLogin = true;
-				}
 
-				if (needsLogin) {
-					try {
-						profileManager.loginProfile(profile);
-					} catch (IOException e) {
-						DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.", e);
+					profile.setChatPhrasesFromString(chatPhrases);
+					profile.setMaximumLateTime(lateTime);
+
+					if (needsLogin) {
+						try {
+							profileManager.loginProfile(profile);
+						} catch (IOException e) {
+							DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.", e);
+						}
 					}
-				}
-				profileManager.save();
-				return true;
+
+					profileManager.save();
+					SwingUtilities.invokeLater(swingUpdateCallback);
+				});
+
+				break;
 			}
 		}
 	}

@@ -38,8 +38,10 @@ public class EosVstuBot {
 		try {
 			context.create();
 			context.loadManagers();
-			new BotWindow(context);
-			context.processMainThreadCommands();
+			BotWindow window = new BotWindow(context);
+			context.occupyMainThread();
+			window.setVisible(false);
+			window.dispose();
 		} finally {
 			context.destroy();
 		}

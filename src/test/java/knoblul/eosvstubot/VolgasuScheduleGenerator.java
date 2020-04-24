@@ -22,6 +22,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import knoblul.eosvstubot.backend.BotContext;
 import knoblul.eosvstubot.backend.schedule.Lesson;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.nodes.Document;
@@ -65,7 +66,7 @@ public class VolgasuScheduleGenerator {
 		for (Element course : courses) {
 			String courseName = course.text();
 			String courseLink = course.attr("href");
-			if (courseName.toLowerCase(Locale.US).contains(lessonName)) {
+			if (StringUtils.containsIgnoreCase(courseName, lessonName)) {
 				targetCourseLink = courseLink;
 				break;
 			}
@@ -73,15 +74,15 @@ public class VolgasuScheduleGenerator {
 
 		if (targetCourseLink != null) {
 			// идем по ссылке на курс
-			HttpUriRequest request = context.buildGetRequest(targetCourseLink, Maps.newHashMap());
-			Document coursePage = context.executeRequestAndParseResponse(request);
+			HttpUriRequest request = context.buildGetRequest(targetCourseLink, null);
+			Document coursePage = context.executeRequest(request, Document.class);
 			// парсим ссылку на консультацию из страницы курса
 			Elements activityInstance = coursePage.select(".activity.chat.modtype_chat .activityinstance a");
 			String consultationLink = activityInstance.attr("href");
 			if (!consultationLink.isEmpty()) {
 				// идем по ссылке на консультацию в режиме онлайн
-				request = context.buildGetRequest(consultationLink, Maps.newHashMap());
-				Document consultationPage = context.executeRequestAndParseResponse(request);
+				request = context.buildGetRequest(consultationLink, null);
+				Document consultationPage = context.executeRequest(request, Document.class);
 				// получаем ссылку на ajax чат.
 				String joinChatAjax = consultationPage.select("#enterlink [href*=/gui_ajax/]")
 						.attr("href");
@@ -103,14 +104,14 @@ public class VolgasuScheduleGenerator {
 	public static void generateScheduleJson(@NotNull BotContext context, @NotNull String scheduleParameter,
 											@NotNull BufferedWriter writer) throws IOException {
 		// получаем экземпляр главной эиоса
-		HttpUriRequest request = context.buildGetRequest("http://eos.vstu.ru/index.php", Maps.newHashMap());
-		Document eosIndex = context.executeRequestAndParseResponse(request);
+		HttpUriRequest request = context.buildGetRequest("http://eos.vstu.ru/index.php", null);
+		Document eosIndex = context.executeRequest(request, Document.class);
 
 		// получаем экземпляр таблицы расписания
 		Map<String, String> params = Maps.newHashMap();
 		params.put("params", scheduleParameter);
 		request = context.buildPostRequest("http://vgasu.ru/contents/select.shedule.php", params);
-		Document document = context.executeRequestAndParseResponse(request);
+		Document document = context.executeRequest(request, Document.class);
 		Element table = document.select("body table tbody").first();
 
 		// парсим таблицу с расписанием

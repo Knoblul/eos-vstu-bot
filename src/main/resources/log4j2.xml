@@ -18,16 +18,22 @@
 <Configuration xmlns:xi="http://www.w3.org/2001/XInclude" packages="knoblul.eosvstubot" status="WARN">
 	<Appenders>
         <Console name="ConsoleOut" target="SYSTEM_OUT">
-            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger]: %msg%n" />
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger] %msg%n" />
 			<LevelRangeFilter minLevel="INFO" maxLevel="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
         </Console>
 		<Console name="ConsoleErr" target="SYSTEM_ERR">
-            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger]: %msg%n" />
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger] %msg%n" />
 			<ThresholdFilter level="WARN" />
         </Console>
 		<TextPaneAppender name="TextPaneAppender">
-			<PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger]: %msg%n" />
+			<PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger] %msg%n" />
 		</TextPaneAppender>
+		<TextPaneAppender name="TextPaneAppender">
+			<PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger] %msg%n" />
+		</TextPaneAppender>
+		<File name="ChatLogFile" fileName="chat.log">
+			<PatternLayout pattern="[%d{dd.MM.YYYY HH:mm:ss}] %msg%n"/>
+		</File>
     </Appenders>
     <Loggers>
         <Root level="ALL">
@@ -35,5 +41,8 @@
 			<AppenderRef ref="ConsoleErr" />
 			<AppenderRef ref="TextPaneAppender" />
         </Root>
+		<Logger name="CHAT" level="INFO">
+			<AppenderRef ref="ChatLogFile" />
+		</Logger>
     </Loggers>
 </Configuration>

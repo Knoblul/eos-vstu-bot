@@ -18,12 +18,13 @@ package knoblul.eosvstubot.backend.profile;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import knoblul.eosvstubot.EosVstuBot;
 import knoblul.eosvstubot.backend.BotContext;
 import knoblul.eosvstubot.utils.Log;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jsoup.nodes.Document;
@@ -48,8 +49,6 @@ import java.util.Map;
  * @author Knoblul
  */
 public class ProfileManager {
-	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
 	private static final String COOKIE_MID_NAME = "MOODLEID1_";
 	private static final String COOKIE_SESSION_NAME = "MoodleSession";
 
@@ -90,10 +89,10 @@ public class ProfileManager {
 		profiles.clear();
 		if (Files.exists(profilesFile)) {
 			try (BufferedReader reader = Files.newBufferedReader(profilesFile)) {
-				JsonArray array = GSON.fromJson(reader, JsonArray.class);
+				JsonArray array = BotContext.GSON.fromJson(reader, JsonArray.class);
 				if (array != null) {
 					for (JsonElement element : array) {
-						profiles.add(GSON.fromJson(element, Profile.class));
+						profiles.add(BotContext.GSON.fromJson(element, Profile.class));
 					}
 				}
 			} catch (IOException | JsonParseException e) {
@@ -111,8 +110,8 @@ public class ProfileManager {
 	public void save() {
 		try (BufferedWriter writer = Files.newBufferedWriter(profilesFile)) {
 			JsonArray array = new JsonArray();
-			profiles.forEach(profile -> array.add(GSON.toJsonTree(profile)));
-			GSON.toJson(array, writer);
+			profiles.forEach(profile -> array.add(BotContext.GSON.toJsonTree(profile)));
+			BotContext.GSON.toJson(array, writer);
 		} catch (IOException | JsonParseException e) {
 			Log.warn(e, "Failed to save %s", profilesFile);
 		}
@@ -179,8 +178,8 @@ public class ProfileManager {
 			selectProfile(profile);
 			// отправляем гет запрос на главную страницу
 			String checkURI = "http://" + EosVstuBot.SITE_DOMAIN + "/index.php";
-			HttpGet request = context.buildGetRequest(checkURI, null);
-			Document document = context.executeRequestAndParseResponse(request);
+			HttpUriRequest request = context.buildGetRequest(checkURI, null);
+			Document document = context.executeRequest(request, Document.class);
 			parseIndexProfileInfo(profile, document); // парсим главную страницу
 			Log.info("%s check success", profile.getUsername());
 			profile.setValid(true);
@@ -216,8 +215,8 @@ public class ProfileManager {
 		params.put("password", profile.getPassword());
 		params.put("rememberusername", "1");
 		params.put("anchor", "");
-		HttpPost request = context.buildPostRequest(loginURI, params);
-		Document document = context.executeRequestAndParseResponse(request);
+		HttpUriRequest request = context.buildPostRequest(loginURI, params);
+		Document document = context.executeRequest(request, Document.class);
 
 		// парсим примечание (обычно отображается если пользователь
 		// уже авторизирован)
