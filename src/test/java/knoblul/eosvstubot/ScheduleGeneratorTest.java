@@ -16,8 +16,8 @@
 package knoblul.eosvstubot;
 
 import com.google.common.base.Stopwatch;
-import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.backend.profile.Profile;
+import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.utils.Log;
 
 import java.io.BufferedWriter;

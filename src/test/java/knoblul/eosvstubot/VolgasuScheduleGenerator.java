@@ -20,8 +20,8 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
-import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.backend.schedule.Lesson;
+import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.schedule.Lesson;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.jetbrains.annotations.NotNull;
@@ -155,8 +155,9 @@ public class VolgasuScheduleGenerator {
 							Lesson lesson = new Lesson();
 							lesson.setName(title + ", " + type);
 							lesson.setTeacher(teacher);
-							lesson.setSchedule(calendar.getTimeInMillis(), currentWeek.contains("II") ? 1 : 0,
-									Lesson.DEFAULT_LESSON_DURATION);
+							lesson.setScheduleTime(calendar.getTimeInMillis());
+							lesson.setWeekIndex(currentWeek.contains("II") ? 1 : 0);
+							lesson.setDuration(Lesson.DEFAULT_LESSON_DURATION);
 							lesson.setChatId(chatId);
 							lessons.add(lesson);
 						}

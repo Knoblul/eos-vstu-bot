@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend;
+package knoblul.eosvstubot.gui;
 
-import knoblul.eosvstubot.EosVstuBot;
-import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.backend.profile.Profile;
-import knoblul.eosvstubot.frontend.profile.ProfileTable;
-import knoblul.eosvstubot.frontend.schedule.ScheduleComponent;
+import knoblul.eosvstubot.api.BotConstants;
+import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.profile.Profile;
+import knoblul.eosvstubot.gui.profile.ProfileTable;
+import knoblul.eosvstubot.gui.schedule.ScheduleManagerComponent;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
 import knoblul.eosvstubot.utils.swing.TextPaneAppender;
 
@@ -29,16 +29,18 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 /**
+ * Основное окно бота.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 21.04.2020 20:53
  * @author Knoblul
  */
-public class BotWindow extends JFrame {
-	public static BotWindow instance;
+public class BotMainWindow extends JFrame {
+	public static BotMainWindow instance;
 	private final BotContext context;
-	private ScheduleComponent scheduleComponent;
+	private ScheduleManagerComponent scheduleManagerComponent;
 
-	public BotWindow(BotContext context) {
+	public BotMainWindow(BotContext context) {
 		instance = this;
 		this.context = context;
 
@@ -47,7 +49,7 @@ public class BotWindow extends JFrame {
 		} catch (Throwable ignored) { }
 
 		setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		setTitle(EosVstuBot.NAME + " v" + EosVstuBot.VERSION);
+		setTitle(BotConstants.NAME + " v" + BotConstants.VERSION);
 		setSize(800, 600);
 		setLocationRelativeTo(null);
 		addWindowListener(new WindowAdapter() {
@@ -72,14 +74,14 @@ public class BotWindow extends JFrame {
 		setLayout(new BorderLayout());
 		JTabbedPane tabs = new JTabbedPane();
 		tabs.addTab("Пользователи", new ProfileTable(context.getProfileManager()));
-		tabs.addTab("Расписание", scheduleComponent = new ScheduleComponent(context.getLessonsManager()));
+		tabs.addTab("Расписание", scheduleManagerComponent = new ScheduleManagerComponent(context.getLessonsManager()));
 		tabs.addTab("Консоль", new JScrollPane(TextPaneAppender.consoleComponent, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
 				JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED));
 		add(tabs, BorderLayout.CENTER);
 	}
 
 	public void update() {
-		scheduleComponent.update();
+		scheduleManagerComponent.update();
 	}
 }
 

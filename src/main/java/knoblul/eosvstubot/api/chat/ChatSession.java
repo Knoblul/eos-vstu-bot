@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.backend.chat;
+package knoblul.eosvstubot.api.chat;
 
 import com.google.common.collect.Maps;
-import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.backend.profile.Profile;
+import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.profile.Profile;
 
 import java.util.Map;
 

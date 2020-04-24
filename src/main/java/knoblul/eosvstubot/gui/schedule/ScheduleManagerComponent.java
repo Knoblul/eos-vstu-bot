@@ -13,21 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.schedule;
+package knoblul.eosvstubot.gui.schedule;
 
-import knoblul.eosvstubot.backend.schedule.LessonsManager;
-import knoblul.eosvstubot.utils.BotConfig;
+import knoblul.eosvstubot.api.schedule.LessonsManager;
 
 import javax.swing.*;
 import java.awt.*;
 import java.text.DateFormatSymbols;
 
 /**
+ * Компонент менеджера расписания.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 23.04.2020 13:14
  * @author Knoblul
  */
-public class ScheduleComponent extends JComponent {
+public class ScheduleManagerComponent extends JComponent {
 	public static final String[] WEEKDAY_NAMES = new DateFormatSymbols().getWeekdays();
 
 	private final LessonsManager lessonsManager;
@@ -35,7 +36,7 @@ public class ScheduleComponent extends JComponent {
 	private JLabel currentWeekLabel;
 	private long lastWeekUpdateLabelTime;
 
-	public ScheduleComponent(LessonsManager lessonsManager) {
+	public ScheduleManagerComponent(LessonsManager lessonsManager) {
 		this.lessonsManager = lessonsManager;
 		fill();
 	}
@@ -66,12 +67,12 @@ public class ScheduleComponent extends JComponent {
 		JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 		bottomPanel.add(currentWeekLabel = new JLabel());
 		bottomPanel.add(new JLabel("смещение рассчета:"));
-		JSpinner spinner = new JSpinner(new SpinnerNumberModel(BotConfig.instance.getFirstWeekOfYearIndex(),
+		JSpinner spinner = new JSpinner(new SpinnerNumberModel(lessonsManager.getFirstWeekOfYearIndex()+1,
 				1, 2, 1));
 		spinner.addChangeListener((e) -> {
-			BotConfig.instance.setFirstWeekOfYearIndex((int) spinner.getModel().getValue());
+			lessonsManager.setFirstWeekOfYearIndex((int) spinner.getModel().getValue() - 1);
 			updateWeekLabel();
-			BotConfig.instance.save();
+			lessonsManager.save();
 		});
 		bottomPanel.add(spinner);
 		add(bottomPanel, BorderLayout.SOUTH);

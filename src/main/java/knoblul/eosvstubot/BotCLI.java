@@ -15,35 +15,13 @@
  */
 package knoblul.eosvstubot;
 
-import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.frontend.BotWindow;
-import knoblul.eosvstubot.utils.BotConfig;
-import knoblul.eosvstubot.utils.Log;
-
 /**
  * <br><br>Module: eos-vstu-bot
- * <br>Created: 21.04.2020 12:17
+ * <br>Created: 24.04.2020 23:41
  * @author Knoblul
  */
-public class EosVstuBot {
-	public static final String NAME = "EosVstuBot";
-	public static final String VERSION = "0.1.1";
-	public static final String SITE_DOMAIN = "eos.vstu.ru";
-
+public class BotCLI {
 	public static void main(String[] args) {
-		Log.info("%s v%s", NAME, VERSION);
-		BotConfig.instance.load();
-
-		BotContext context = new BotContext();
-		try {
-			context.create();
-			context.loadManagers();
-			BotWindow window = new BotWindow(context);
-			context.occupyMainThread();
-			window.setVisible(false);
-			window.dispose();
-		} finally {
-			context.destroy();
-		}
+		// TODO
 	}
 }

@@ -26,6 +26,9 @@ import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 import org.apache.logging.log4j.core.layout.PatternLayout;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import javax.swing.text.AttributeSet;
@@ -35,6 +38,8 @@ import javax.swing.text.StyleContext;
 import java.awt.*;
 
 /**
+ * log4j2 Appender, который пишет логи в {@link #consoleComponent}
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 21.04.2020 21:50
  * @author Knoblul
@@ -47,6 +52,7 @@ public class TextPaneAppender extends AbstractAppender {
 			setEditable(false);
 		}
 
+		// костыль, чтобы избавится от вордврапа, когда родитель JScrollPane.
 		@Override
 		public boolean getScrollableTracksViewportWidth() {
 			return getUI().getPreferredSize(this).width <= getParent().getSize().width;
@@ -57,6 +63,8 @@ public class TextPaneAppender extends AbstractAppender {
 		super(name, filter, layout, ignoreExceptions, Property.EMPTY_ARRAY);
 	}
 
+	@Nullable
+	@Contract("!null, _, !null, _ -> new")
 	@SuppressWarnings("unused")
 	@PluginFactory
 	public static TextPaneAppender createAppender(@PluginAttribute("name") String name,
@@ -76,7 +84,8 @@ public class TextPaneAppender extends AbstractAppender {
 	}
 
 	@Override
-	public void append(LogEvent event) {
+	public void append(@NotNull LogEvent event) {
+		// если ошибка, цвет текста = красный, иначе черный
 		Color color = event.getLevel().isMoreSpecificThan(Level.WARN) ? Color.RED.brighter().brighter() : Color.BLACK;
 		StyleContext context = StyleContext.getDefaultStyleContext();
 		AttributeSet attributes = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, color);

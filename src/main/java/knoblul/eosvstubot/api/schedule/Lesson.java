@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.backend.schedule;
+package knoblul.eosvstubot.api.schedule;
 
 /**
  * <br><br>Module: eos-vstu-bot
@@ -24,23 +24,58 @@ package knoblul.eosvstubot.backend.schedule;
 public class Lesson {
 	public static final int DEFAULT_LESSON_DURATION = (60 + 30)*60*1000; // один час тридцать минут (в мс)
 
+	/**
+	 * Название предмета.
+	 */
 	private String name = "";
+
+	/**
+	 * Имя преподавателя, который ведет данный предмет.
+	 */
 	private String teacher = "";
+
+	/**
+	 * Время старта предмета, от начала недели, в миллисекундах.
+	 */
 	private long scheduleTime = 0;
+
+	/**
+	 * Индекс/номер недели, на которой данный предмет должен преподаваться.
+	 */
 	private int weekIndex = 0;
+
+	/**
+	 * Продолжительность предмета, в миллисекундах.
+	 */
 	private long duration = DEFAULT_LESSON_DURATION;
+
+	/**
+	 * ID чата, в котором идет онлайн-конференция.
+	 */
 	private String chatId = "";
 
 	public long getScheduleTime() {
 		return scheduleTime;
 	}
 
+	public void setScheduleTime(long scheduleTime) {
+		this.scheduleTime = scheduleTime;
+	}
+
 	public int getWeekIndex() {
 		return weekIndex;
 	}
 
+	public void setWeekIndex(int weekIndex) {
+		this.weekIndex = weekIndex;
+	}
+
 	public long getDuration() {
 		return duration;
+	}
+
+	public void setDuration(long duration) {
+		this.duration = duration;
 	}
 
 	public String getName() {
@@ -65,11 +100,5 @@ public class Lesson {
 
 	public void setChatId(String chatId) {
 		this.chatId = chatId;
-	}
-
-	public void setSchedule(long scheduleTime, int scheduleWeekIndex, long lessonDuration) {
-		this.scheduleTime = scheduleTime;
-		this.weekIndex = scheduleWeekIndex;
-		this.duration = lessonDuration;
 	}
 }

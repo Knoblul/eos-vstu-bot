@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.backend.profile;
+package knoblul.eosvstubot.api.profile;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -21,8 +21,8 @@ import com.google.common.collect.Maps;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
-import knoblul.eosvstubot.EosVstuBot;
-import knoblul.eosvstubot.backend.BotContext;
+import knoblul.eosvstubot.api.BotConstants;
+import knoblul.eosvstubot.api.BotContext;
 import knoblul.eosvstubot.utils.Log;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.jetbrains.annotations.NotNull;
@@ -49,6 +49,7 @@ import java.util.Map;
  * @author Knoblul
  */
 public class ProfileManager {
+	// куки, хранящие moodle session
 	private static final String COOKIE_MID_NAME = "MOODLEID1_";
 	private static final String COOKIE_SESSION_NAME = "MoodleSession";
 
@@ -163,8 +164,8 @@ public class ProfileManager {
 		context.clearCookies();
 		if (profile != null) {
 			String[] cookies = profile.getCookies();
-			context.setCookie(COOKIE_MID_NAME, cookies[0], EosVstuBot.SITE_DOMAIN, "/");
-			context.setCookie(COOKIE_SESSION_NAME, cookies[1], EosVstuBot.SITE_DOMAIN, "/");
+			context.setCookie(COOKIE_MID_NAME, cookies[0], BotConstants.SITE_DOMAIN, "/");
+			context.setCookie(COOKIE_SESSION_NAME, cookies[1], BotConstants.SITE_DOMAIN, "/");
 		}
 	}
 
@@ -177,7 +178,7 @@ public class ProfileManager {
 			// выбираем этот профиль для проверки
 			selectProfile(profile);
 			// отправляем гет запрос на главную страницу
-			String checkURI = "http://" + EosVstuBot.SITE_DOMAIN + "/index.php";
+			String checkURI = "http://" + BotConstants.SITE_DOMAIN + "/index.php";
 			HttpUriRequest request = context.buildGetRequest(checkURI, null);
 			Document document = context.executeRequest(request, Document.class);
 			parseIndexProfileInfo(profile, document); // парсим главную страницу
@@ -209,7 +210,7 @@ public class ProfileManager {
 		// очищаем все куки перед входом
 		context.clearCookies();
 
-		String loginURI = "http://" + EosVstuBot.SITE_DOMAIN + "/login/index.php";
+		String loginURI = "http://" + BotConstants.SITE_DOMAIN + "/login/index.php";
 		Map<String, String> params = Maps.newHashMap();
 		params.put("username", profile.getUsername());
 		params.put("password", profile.getPassword());

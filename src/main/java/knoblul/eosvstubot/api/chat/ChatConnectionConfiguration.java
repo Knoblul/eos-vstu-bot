@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.backend.chat;
+package knoblul.eosvstubot.api.chat;
 
 import com.google.gson.JsonObject;
-import knoblul.eosvstubot.backend.BotContext;
+import knoblul.eosvstubot.api.BotContext;
 import org.apache.commons.text.StringEscapeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.nodes.Document;

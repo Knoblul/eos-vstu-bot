@@ -13,18 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.schedule;
+package knoblul.eosvstubot.gui.schedule;
 
-import knoblul.eosvstubot.backend.schedule.Lesson;
+import knoblul.eosvstubot.api.schedule.Lesson;
 
 import javax.swing.table.AbstractTableModel;
 import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Модель недельной таблицы с предметами.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 23.04.2020 13:22
- *
  * @author Knoblul
  */
 class ScheduleTableModel extends AbstractTableModel {

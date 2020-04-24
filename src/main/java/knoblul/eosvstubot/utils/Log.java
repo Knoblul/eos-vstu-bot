@@ -15,7 +15,7 @@
  */
 package knoblul.eosvstubot.utils;
 
-import knoblul.eosvstubot.EosVstuBot;
+import knoblul.eosvstubot.api.BotConstants;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,12 +23,14 @@ import org.apache.logging.log4j.Logger;
 import java.io.PrintStream;
 
 /**
+ * Логгер бота.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 21.04.2020 14:00
  * @author Knoblul
  */
 public class Log {
-	private static final Logger LOGGER = LogManager.getLogger(EosVstuBot.NAME);
+	private static final Logger LOGGER = LogManager.getLogger(BotConstants.NAME);
 
 	private static class LoggingPrintStream extends PrintStream {
 		private final Logger logger;

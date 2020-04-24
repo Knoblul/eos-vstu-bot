@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.profile;
+package knoblul.eosvstubot.gui.profile;
 
-import knoblul.eosvstubot.backend.profile.Profile;
-import knoblul.eosvstubot.backend.profile.ProfileManager;
+import knoblul.eosvstubot.api.profile.Profile;
+import knoblul.eosvstubot.api.profile.ProfileManager;
 
 import javax.swing.table.AbstractTableModel;
 
 /**
+ * Модель компонента-таблицы менеджера профилей.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 21.04.2020 22:19
  * @author Knoblul

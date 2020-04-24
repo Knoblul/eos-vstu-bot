@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.backend.profile;
+package knoblul.eosvstubot.api.profile;
 
 import com.google.common.base.Splitter;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +26,7 @@ import java.util.Arrays;
  * @author Knoblul
  */
 public class Profile {
-	public static final char CHAT_PHRASES_DELIMITER = '|';
+	public static final String CHAT_PHRASES_DELIMITER = "|";
 	public static final String[] DEFAULT_CHAT_PHRASES = new String[] { "+" };
 	public static final int DEFAULT_MAXIMUM_LATE_TIME = 15*60*1000; // 15 минут
 
@@ -99,6 +99,10 @@ public class Profile {
 		this.profileLink = profileLink;
 	}
 
+	/**
+	 * @return масив, хранящий фразы, которые бот должен
+	 * говорить в чате от лица этого профиля.
+	 */
 	public String[] getChatPhrases() {
 		return chatPhrases;
 	}
@@ -120,9 +124,13 @@ public class Profile {
 	 * @return фразы в формате строки, разделеные {@link #CHAT_PHRASES_DELIMITER}
 	 */
 	public String getChatPhrasesAsString() {
-		return String.join(Character.toString(CHAT_PHRASES_DELIMITER), chatPhrases);
+		return String.join(CHAT_PHRASES_DELIMITER, chatPhrases);
 	}
 
+	/**
+	 * Создает массив фраз из указанной строки
+	 * @param chatPhrases фразы в формате строки, разделеные {@link #CHAT_PHRASES_DELIMITER}
+	 */
 	public void setChatPhrasesFromString(String chatPhrases) {
 		this.chatPhrases = Splitter.on(CHAT_PHRASES_DELIMITER).trimResults()
 				.splitToList(chatPhrases).toArray(new String[0]);

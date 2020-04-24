@@ -13,25 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.schedule;
+package knoblul.eosvstubot.gui.schedule;
 
-import knoblul.eosvstubot.backend.schedule.Lesson;
-import knoblul.eosvstubot.backend.schedule.LessonsManager;
-import knoblul.eosvstubot.frontend.BotWindow;
+import knoblul.eosvstubot.api.schedule.Lesson;
+import knoblul.eosvstubot.api.schedule.LessonsManager;
+import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.utils.swing.TimeChooser;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.Calendar;
 
-import static knoblul.eosvstubot.frontend.schedule.ScheduleTableModel.*;
+import static knoblul.eosvstubot.gui.schedule.ScheduleTableModel.*;
 
 /**
+ * Диалог для редактирования данных {@link Lesson}.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 23.04.2020 15:03
  * @author Knoblul
  */
-public class LessonEditDialog extends JComponent {
+class LessonEditDialog extends JComponent {
 	private static final Integer[] COMBO_WEEK_DAYS = new Integer[] {
 			Calendar.MONDAY,
 			Calendar.TUESDAY,
@@ -92,7 +94,7 @@ public class LessonEditDialog extends JComponent {
 			public Component getListCellRendererComponent(JList<?> list, Object value, int index,
 														  boolean isSelected, boolean cellHasFocus) {
 				JLabel label = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-				label.setText(ScheduleComponent.WEEKDAY_NAMES[(int) value]);
+				label.setText(ScheduleManagerComponent.WEEKDAY_NAMES[(int) value]);
 				return label;
 			}
 		});
@@ -146,7 +148,7 @@ public class LessonEditDialog extends JComponent {
 		chatIdField.setText(editingLesson != null ? editingLesson.getChatId() : "");
 
 		String title = editingLesson == null ? "Создать предмет" : "Изменить данные предмета";
-		if (JOptionPane.showConfirmDialog(BotWindow.instance, this, title,
+		if (JOptionPane.showConfirmDialog(BotMainWindow.instance, this, title,
 				JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
 			return false;
 		}
@@ -160,7 +162,9 @@ public class LessonEditDialog extends JComponent {
 		scheduleCalendar.set(Calendar.SECOND, timeSpinner.getSecond());
 		lesson.setName(nameField.getText().trim());
 		lesson.setTeacher(teacherField.getText().trim());
-		lesson.setSchedule(scheduleCalendar.getTimeInMillis(), weekIndex, durationSpinner.getTimeMillis());
+		lesson.setScheduleTime(scheduleCalendar.getTimeInMillis());
+		lesson.setWeekIndex(weekIndex);
+		lesson.setDuration(durationSpinner.getTimeMillis());
 		lesson.setChatId(chatIdField.getText().trim());
 		lessonsManager.save();
 		return true;

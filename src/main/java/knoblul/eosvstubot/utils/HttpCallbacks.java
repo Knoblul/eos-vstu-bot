@@ -75,23 +75,7 @@ public class HttpCallbacks {
 	}
 
 	@NotNull
-	@Contract(value = "_, _ -> new", pure = true)
 	public static <T> FutureCallback<T> onEither(Consumer<T> onCompletion, Consumer<Exception> onFailure) {
-		return new FutureCallback<T>() {
-			@Override
-			public void completed(T result) {
-				onCompletion.accept(result);
-			}
-
-			@Override
-			public void failed(Exception ex) {
-				onFailure.accept(ex);
-			}
-
-			@Override
-			public void cancelled() {
-				onFailure.accept(new CancellationException());
-			}
-		};
+		return onFailure(onCompletion(onCompletion), onFailure);
 	}
 }

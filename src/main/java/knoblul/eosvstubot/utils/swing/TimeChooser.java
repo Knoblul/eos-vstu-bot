@@ -17,11 +17,11 @@ package knoblul.eosvstubot.utils.swing;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.StreamSupport;
 
 /**
+ * Простой swing-компонент для выбора времени.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 23.04.2020 15:26
  * @author Knoblul
@@ -62,22 +62,41 @@ public class TimeChooser extends JComponent {
 		add(secondSpinner);
 	}
 
+	/**
+	 * Устанавливает спиннеры на указанные значения
+	 * @param hour час, который нужно установить спиннеру часов
+	 * @param minute минута, которую нужно установить спиннеру минут
+	 * @param second секунда, которую нужно установить спиннеру секунд
+	 */
 	public void set(int hour, int minute, int second) {
 		hourSpinnerModel.setValue(hour);
 		minuteSpinnerModel.setValue(minute);
 		secondSpinnerModel.setValue(second);
 	}
 
+	/**
+	 * @return выбранный час
+	 */
 	public int getHour() {
 		return hourSpinnerModel.getNumber().intValue();
 	}
 
+	/**
+	 * @return выбранная минута
+	 */
 	public int getMinute() {
 		return minuteSpinnerModel.getNumber().intValue();
 	}
 
+	/**
+	 * @return выбранная секунда
+	 */
 	public int getSecond() { return secondSpinnerModel.getNumber().intValue(); }
 
+	/**
+	 * Устанавливает спиннеры на нужное время с помощью указанного времени в миллисекундах.
+	 * @param time время, в миллисекундах, которое нужно применить к спиннерам
+	 */
 	public void setTimeMillis(long time) {
 		TimeUnit unit = TimeUnit.MILLISECONDS;
 		hourSpinnerModel.setValue(unit.toHours(time)%24);
@@ -85,6 +104,9 @@ public class TimeChooser extends JComponent {
 		secondSpinnerModel.setValue(unit.toSeconds(time)%60);
 	}
 
+	/**
+	 * @return выбранное время в миллисекундах
+	 */
 	public long getTimeMillis() {
 		return TimeUnit.SECONDS.toMillis((getHour() * 60 + getMinute())
 				* 60 + getSecond());
@@ -92,6 +114,7 @@ public class TimeChooser extends JComponent {
 
 	@Override
 	public void setToolTipText(String text) {
+		// костыль, чтобы установить тултип всем спиннерам
 		super.setToolTipText(text);
 		for (Component component: getComponents()) {
 			if (component instanceof JComponent) {

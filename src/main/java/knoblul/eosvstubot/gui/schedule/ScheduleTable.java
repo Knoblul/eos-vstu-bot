@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.schedule;
+package knoblul.eosvstubot.gui.schedule;
 
 import com.google.common.collect.Lists;
-import knoblul.eosvstubot.backend.schedule.Lesson;
-import knoblul.eosvstubot.backend.schedule.LessonsManager;
+import knoblul.eosvstubot.api.schedule.Lesson;
+import knoblul.eosvstubot.api.schedule.LessonsManager;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -32,11 +32,13 @@ import java.util.List;
 
 
 /**
+ * Недельная таблица с предметами.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 23.04.2020 13:18
  * @author Knoblul
  */
-public class ScheduleTable extends JComponent {
+class ScheduleTable extends JComponent {
 	private final LessonsManager lessonsManager;
 	private final int weekIndex;
 
@@ -47,7 +49,7 @@ public class ScheduleTable extends JComponent {
 	private JButton removeButton;
 	private LessonEditDialog editDialog;
 
-	public ScheduleTable(LessonsManager lessonsManager, int weekIndex) {
+	ScheduleTable(LessonsManager lessonsManager, int weekIndex) {
 		this.lessonsManager = lessonsManager;
 		this.weekIndex = weekIndex;
 		fill();

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.backend;
+package knoblul.eosvstubot.api;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
@@ -23,10 +23,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
-import knoblul.eosvstubot.backend.chat.ChatSession;
-import knoblul.eosvstubot.backend.profile.ProfileManager;
-import knoblul.eosvstubot.backend.schedule.LessonsManager;
-import knoblul.eosvstubot.frontend.BotWindow;
+import knoblul.eosvstubot.api.chat.ChatSession;
+import knoblul.eosvstubot.api.profile.ProfileManager;
+import knoblul.eosvstubot.api.schedule.LessonsManager;
+import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.utils.Log;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -81,15 +81,45 @@ public class BotContext {
 
 	private static final int MAX_HTTP_REDIRECTS = 10;
 
+	/**
+	 * Экземпляр основной потока. Нужен для проверок
+	 * корректности вызова методов контекста (и не только).
+	 */
 	public final Thread mainThread;
+
+	/**
+	 * Экземпляр менеджера профилей, который "привязан"
+	 * к данному контексту.
+	 */
 	private final ProfileManager profileManager;
+
+	/**
+	 * Экземпляр менеджера расписания, который "привязан"
+	 * к данному контексту.
+	 */
 	private final LessonsManager lessonsManager;
 
+	/**
+	 * Хранилище куки для запросов.
+	 */
 	private CookieStore cookieStore;
+
+	/**
+	 * Основной блокирующий HTTP-клиент
+	 */
 	private CloseableHttpClient client;
+
+	/**
+	 * Асинхронный HTTP-клиент
+	 */
 	private CloseableHttpAsyncClient asyncClient;
 
+	/**
+	 * Очередь из команд, которые должны исполнится в
+	 * основном потоке
+	 */
 	private Queue<Runnable> mainThreadCommands = Queues.newConcurrentLinkedQueue();
+
 	private Map<URI, ChatSession> chatSessions = Maps.newHashMap();
 
 	public BotContext() {
@@ -101,7 +131,10 @@ public class BotContext {
 		profileManager = new ProfileManager(this);
 		lessonsManager = new LessonsManager(this);
 	}
-	
+
+	/**
+	 * Проверяет экземпляр на наличие контекста.
+	 */
 	private void check() {
 		if (client == null) {
 			throw new IllegalStateException("Context not created yet");
@@ -109,8 +142,42 @@ public class BotContext {
 	}
 
 	/**
-	 * Вызывает команду в основном потоке.
-	 * @param command команда
+	 * Создает котекст. Далее все контекстные действия могут выполнятся
+	 * вплоть до вызова {@link #destroy()}.
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться, если контекст уже был создан.</p>
+	 */
+	public void create() {
+		if (client != null) {
+			throw new IllegalStateException("Context already created");
+		}
+
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+
+		cookieStore = new BasicCookieStore();
+
+		client = HttpClientBuilder.create()
+				.setRedirectStrategy(new LaxRedirectStrategy())
+				.setDefaultCookieStore(cookieStore)
+				.build();
+
+		asyncClient = HttpAsyncClientBuilder.create()
+				.setRedirectStrategy(new LaxRedirectStrategy())
+				.setDefaultCookieStore(cookieStore)
+				.build();
+
+		asyncClient.start();
+	}
+
+	/**
+	 * Отправляет команду на исполнение в основной поток, если текущий
+	 * поток не основной. Иначе исполняет команду немедленно.
+	 *
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
+	 * @param command команда, которую нужно исполнить
 	 */
 	public void invokeMainThreadCommand(Runnable command) {
 		if (Thread.currentThread() == mainThread) {
@@ -125,9 +192,10 @@ public class BotContext {
 	}
 
 	/**
-	 * Запускает бексконечный цикл для обработки
-	 * команд из очереди.
+	 * Запускает бексконечный цикл для обработки команд из очереди.
 	 * Основное назначение - блокирование текущего потока и ожидание команд.
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
 	public void occupyMainThread() {
 		check();
@@ -148,43 +216,34 @@ public class BotContext {
 		}
 	}
 
+	/**
+	 * Высушивает очередь из команд к главному потоку,
+	 * затем выполняет их. После этого обновляет чат сессии и
+	 * некоторые штуки в интерфейсе.
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
+	 */
 	public void update() {
 		check();
 		if (Thread.currentThread() != mainThread) {
 			throw new IllegalStateException("This function must only be called from main thread");
 		}
 
-		Runnable command = mainThreadCommands.poll();
-		if (command != null) {
+		Runnable command;
+		while ((command = mainThreadCommands.poll()) != null) {
 			invokeMainThreadCommand(command);
 		}
 
 		chatSessions.values().forEach(ChatSession::update);
 
-		if (BotWindow.instance != null) {
-			BotWindow.instance.update();
+		if (BotMainWindow.instance != null) {
+			BotMainWindow.instance.update();
 		}
-	}
-
-	public ChatSession createChatSession(String chatLink) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
-		return chatSessions.computeIfAbsent(URI.create(chatLink), (k) -> new ChatSession(this, chatLink));
-	}
-
-	public void destroyChatSession(ChatSession session) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
-		chatSessions.values().remove(session);
-		session.close();
 	}
 
 	/**
 	 * Говорит основному потоку перестать обрабатывать команды.
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
 	public void stopMainThreadCommandsProcessing() {
 		check();
@@ -192,6 +251,7 @@ public class BotContext {
 	}
 
 	/**
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 * @return {@link #profileManager}
 	 */
 	public ProfileManager getProfileManager() {
@@ -200,6 +260,7 @@ public class BotContext {
 	}
 
 	/**
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 * @return {@link #lessonsManager}
 	 */
 	public LessonsManager getLessonsManager() {
@@ -208,25 +269,11 @@ public class BotContext {
 	}
 
 	/**
-	 * Создает котекст. Далее все контекстные действия могут выполнятся
-	 * вплоть до вызова {@link #destroy()}.
+	 * Загружает все менеджеры, которые управляют какими-либо ресурсами.
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
-	public void create() {
-		cookieStore = new BasicCookieStore();
-
-		client = HttpClientBuilder.create()
-				.setRedirectStrategy(new LaxRedirectStrategy())
-				.setDefaultCookieStore(cookieStore)
-				.build();
-
-		asyncClient = HttpAsyncClientBuilder.create()
-				.setRedirectStrategy(new LaxRedirectStrategy())
-				.setDefaultCookieStore(cookieStore)
-				.build();
-
-		asyncClient.start();
-	}
-
 	public void loadManagers() {
 		check();
 		if (Thread.currentThread() != mainThread) {
@@ -238,6 +285,9 @@ public class BotContext {
 
 	/**
 	 * Очищает все куки из данного контекста
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
 	public void clearCookies() {
 		check();
@@ -249,6 +299,9 @@ public class BotContext {
 
 	/**
 	 * Получает куки по имени из тех, что хранит данный контекст
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 * @param name имя куки
 	 * @return найденный куки или <code>null</code>
 	 */
@@ -269,6 +322,9 @@ public class BotContext {
 
 	/**
 	 * Получает згачегие куки по имени из тех, что хранит данный контекст
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 * @param name имя куки
 	 * @return значение куки или <code>null</code>
 	 */
@@ -286,6 +342,9 @@ public class BotContext {
 	/**
 	 * Добавляет куки в хранение у контекста. Куки заменяется новым, если
 	 * уже присутсвует в списке куки.
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 * @param name имя куки
 	 * @param value значение куки или <code>null</code>
 	 * @param domain домен куки
@@ -308,6 +367,9 @@ public class BotContext {
 
 	/**
 	 * Создает новый GET-запрос, готовый для выполнения.
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 * @param uri юрл запроса
 	 * @param params параметры запроса, которые добавляются к GET-параметрам юрл.
 	 * @return новый GET-запрос, готовый для выполнения.
@@ -344,6 +406,9 @@ public class BotContext {
 
 	/**
 	 * Создает новый POST-запрос, готовый для выполнения.
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 * @param uri юрл запроса
 	 * @param postParams параметры запроса, которые передаются в теле POST-запроса
 	 * @return новый POST-запрос, готовый для выполнения.
@@ -379,13 +444,15 @@ public class BotContext {
 
 	/**
 	 * Выполняет указанный запрос и возвращает ответ в типе, который указан с помощью
-	 * класса expectedResponseClass. Виды типов {@link Document}, {@link JsonElement}.
+	 * класса expectedResponseClass. Виды типов {@link Document}, {@link JsonElement}, String.
 	 * Если тип не относится к этим видам, метод выкинет IllegalArgumentException
 	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 * @param request экземпляр настроенного запроса
 	 * @param expectedResponseClass класс, указывающий на вид типа.
 	 * @param <T> вид типа {@link Document} или {@link JsonElement}.
-	 * @return страницу в виде {@link Document}, готовую для парсинга.
+	 * @return ответ преобразованный в тип, который был указан параметром expectedResponseClass.
 	 * @throws IOException при возникновении ошибки во время получения/разбора ответа.
 	 * @throws IllegalArgumentException при неверном указании типа
 	 */
@@ -439,20 +506,21 @@ public class BotContext {
 
 	/**
 	 * Асинхронно выполняет указанный запрос и возвращает {@link Future} запроса.
-	 * Тип колббека указан с помощью класса expectedResponseClass. Виды типов {@link Document}, {@link JsonElement}.
-	 * Если тип не относится к этим видам, коллбек зафейлится с IllegalArgumentException.
-	 * Для коллбека написан декоратор, который позволит получать переданному коллбеку при успехе не сырой ответ от
-	 * HTTP клиента а объект в указанном виде.
+	 * Тип колббека указан с помощью класса expectedResponseClass. Виды типов {@link Document}, {@link JsonElement},
+	 * String. Если тип не относится к этим видам, коллбек зафейлится с IllegalArgumentException.
+	 * Для коллбека написан декоратор, который позволит получать переданному
+	 * коллбеку при успехе не сырой ответ от HTTP клиента а объект в указанном виде.
 	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
+	 * @param <T> вид типа {@link Document}, {@link JsonElement}, String
 	 * @param request экземпляр настроенного запроса
 	 * @param expectedResponseClass класс, указывающий на вид типа.
 	 * @param responseCallback коллбек, который вызывается HTTP клиентом
 	 *                           после получения ответа или ошибки
-	 * @param <T> вид типа {@link Document} или {@link JsonElement}.
-	 * @return {@link Future} запроса
 	 */
-	public <T> Future<HttpResponse> executeRequestAsync(@NotNull HttpUriRequest request, Class<T> expectedResponseClass,
-														FutureCallback<T> responseCallback) {
+	public <T> void executeRequestAsync(@NotNull HttpUriRequest request, Class<T> expectedResponseClass,
+										FutureCallback<T> responseCallback) {
 		check();
 		if (Thread.currentThread() != mainThread) {
 			throw new IllegalStateException("This function must only be called from main thread");
@@ -460,7 +528,7 @@ public class BotContext {
 
 		Exception callStackTrace = new Exception("Call stack trace");
 		// добавил декоратор, чтобы получать не "сырые" ответы в коллбеках
-		return asyncClient.execute(request, new FutureCallback<HttpResponse>() {
+		asyncClient.execute(request, new FutureCallback<HttpResponse>() {
 			@Override
 			public void completed(HttpResponse result) {
 				// чтобы коллбек "фейлился" при статусе, отличном от 200 OK
@@ -526,11 +594,36 @@ public class BotContext {
 		});
 	}
 
+	public ChatSession createChatSession(String chatLink) {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+		return chatSessions.computeIfAbsent(URI.create(chatLink), (k) -> new ChatSession(this, chatLink));
+	}
+
+	public void destroyChatSession(ChatSession session) {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+		chatSessions.values().remove(session);
+		session.close();
+	}
+
 	/**
 	 * Уничтожает контекст, закрывая {@link #client}.
 	 * Далее, контекстные действия не могут выполнятся.
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после уничтожения контекста.</p>
 	 */
 	public void destroy() {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+
 		if (client != null) {
 			try {
 				client.close();

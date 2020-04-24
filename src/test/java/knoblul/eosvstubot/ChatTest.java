@@ -16,10 +16,10 @@
 package knoblul.eosvstubot;
 
 import com.google.common.base.Charsets;
-import knoblul.eosvstubot.backend.BotContext;
-import knoblul.eosvstubot.backend.chat.ChatConnection;
-import knoblul.eosvstubot.backend.chat.ChatSession;
-import knoblul.eosvstubot.backend.profile.Profile;
+import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.chat.ChatConnection;
+import knoblul.eosvstubot.api.chat.ChatSession;
+import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.utils.Log;
 
 import java.io.BufferedReader;

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.profile;
+package knoblul.eosvstubot.gui.profile;
 
 import com.google.common.collect.Lists;
-import knoblul.eosvstubot.backend.profile.Profile;
-import knoblul.eosvstubot.backend.profile.ProfileManager;
+import knoblul.eosvstubot.api.profile.Profile;
+import knoblul.eosvstubot.api.profile.ProfileManager;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
+ * Компонент-таблица менеджера профилей.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 21.04.2020 22:34
  * @author Knoblul

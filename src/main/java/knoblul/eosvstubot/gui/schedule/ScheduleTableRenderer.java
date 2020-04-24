@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.schedule;
+package knoblul.eosvstubot.gui.schedule;
 
-import knoblul.eosvstubot.backend.schedule.Lesson;
+import knoblul.eosvstubot.api.schedule.Lesson;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
@@ -24,6 +24,8 @@ import java.awt.*;
 import java.util.Calendar;
 
 /**
+ * Рендер клеток недельной таблицы с предметами.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 23.04.2020 17:34
  * @author Knoblul
@@ -47,7 +49,7 @@ class ScheduleTableRenderer extends DefaultTableCellRenderer {
 			calendar.setTimeInMillis(lesson.getScheduleTime());
 			switch (modelColumn) {
 				case ScheduleTableModel.COLUMN_DAY_OF_WEEK:
-					label.setText(StringUtils.capitalize(ScheduleComponent.WEEKDAY_NAMES[calendar.get(Calendar.DAY_OF_WEEK)]));
+					label.setText(StringUtils.capitalize(ScheduleManagerComponent.WEEKDAY_NAMES[calendar.get(Calendar.DAY_OF_WEEK)]));
 					break;
 				case ScheduleTableModel.COLUMN_TIME:
 					label.setText(String.format("%02d:%02d:%02d",

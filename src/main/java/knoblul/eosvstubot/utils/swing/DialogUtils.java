@@ -16,7 +16,7 @@
 package knoblul.eosvstubot.utils.swing;
 
 import com.google.common.base.Throwables;
-import knoblul.eosvstubot.frontend.BotWindow;
+import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.utils.Log;
 
 import javax.swing.*;
@@ -28,19 +28,32 @@ import java.awt.*;
  * @author Knoblul
  */
 public class DialogUtils {
+	/**
+	 * Показывает простой диалог о предупреждении.
+	 * Вызывать можно из любого потока, так как создание диалога
+	 * в любом случае будет происходить в AWT event dispatching thread.
+	 * @param message текст предупреждения
+	 */
 	public static void showWarning(String message) {
 		SwingUtilities.invokeLater(() ->
-				JOptionPane.showMessageDialog(BotWindow.instance, message,
+				JOptionPane.showMessageDialog(BotMainWindow.instance, message,
 						"Внимание", JOptionPane.WARNING_MESSAGE)
 		);
 	}
 
+	/**
+	 * Показывает простой диалог с сообщением об ошибке.
+	 * Вызывать можно из любого потока, так как создание диалога
+	 * в любом случае будет происходить в AWT event dispatching thread.
+	 * @param message текст ошибки
+	 * @param t исключение
+	 */
 	public static void showError(String message, Throwable t) {
 		// какой то старый снипплет свинг диалога с ошибкой,
 		// украл из старго проекта
 		Log.error(t, message);
 
-		JDialog dialog = new JDialog(BotWindow.instance, "Ошибка", true);
+		JDialog dialog = new JDialog(BotMainWindow.instance, "Ошибка", true);
 		dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);
 		dialog.setLayout(new GridBagLayout());
 
@@ -86,8 +99,15 @@ public class DialogUtils {
 		SwingUtilities.invokeLater(() -> dialog.setVisible(true));
 	}
 
+	/**
+	 * Показывает простой диалог о подтверждении.
+	 * Вызывать можно из любого потока, так как создание диалога
+	 * в любом случае будет происходить в AWT event dispatching thread.
+	 * @param message текст подтверждения
+	 * @return <code>true</code>, если была нажата кнопка ДА.
+	 */
 	public static boolean showConfirmation(String message) {
-		return JOptionPane.showConfirmDialog(BotWindow.instance, message, "Подтвердите",
+		return JOptionPane.showConfirmDialog(BotMainWindow.instance, message, "Подтвердите",
 				JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
 	}
 }

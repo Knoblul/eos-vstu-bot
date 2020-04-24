@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.frontend.profile;
+package knoblul.eosvstubot.gui.profile;
 
-import knoblul.eosvstubot.backend.profile.Profile;
-import knoblul.eosvstubot.backend.profile.ProfileManager;
-import knoblul.eosvstubot.frontend.BotWindow;
+import knoblul.eosvstubot.api.profile.Profile;
+import knoblul.eosvstubot.api.profile.ProfileManager;
+import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
 import knoblul.eosvstubot.utils.swing.TimeChooser;
 
@@ -26,9 +26,10 @@ import java.awt.*;
 import java.io.IOException;
 
 /**
+ * Диалог для редактирования данных {@link Profile}.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 22.04.2020 10:47
- *
  * @author Knoblul
  */
 class ProfileEditDialog extends JComponent {
@@ -78,7 +79,7 @@ class ProfileEditDialog extends JComponent {
 		gbc.weightx = 1;
 		add(chatPhrasesField = new JTextField(20), gbc);
 		chatPhrasesField.setToolTipText("Рандомные фразы, которые будет говорить бот" +
-				" в чате. Разделяются символом '" + Profile.CHAT_PHRASES_DELIMITER + "'. ");
+				" в чате. Разделяются с помощью '" + Profile.CHAT_PHRASES_DELIMITER + "'. ");
 		gbc.weightx = 0;
 		gbc.gridy++;
 
@@ -115,13 +116,12 @@ class ProfileEditDialog extends JComponent {
 		} else {
 			usernameField.setText("");
 			passwordField.setText("");
-			chatPhrasesField.setText(String.join("" + Profile.CHAT_PHRASES_DELIMITER,
-					Profile.DEFAULT_CHAT_PHRASES));
+			chatPhrasesField.setText(String.join(Profile.CHAT_PHRASES_DELIMITER, Profile.DEFAULT_CHAT_PHRASES));
 			lateTimeChooser.setTimeMillis(Profile.DEFAULT_MAXIMUM_LATE_TIME);
 		}
 
 		String title = editingProfile == null ? "Создать пользователя" : "Изменить данные пользователя";
-		while (JOptionPane.showConfirmDialog(BotWindow.instance, this, title,
+		while (JOptionPane.showConfirmDialog(BotMainWindow.instance, this, title,
 				JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
 
 			String username = getUsername();
