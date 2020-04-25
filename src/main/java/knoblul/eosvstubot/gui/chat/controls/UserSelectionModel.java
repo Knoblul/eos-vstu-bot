@@ -38,14 +38,39 @@ class UserSelectionModel extends AbstractListModel<ScheduledConnectionsHandler.S
 
 	@Override
 	public int getSize() {
-		return scheduledConnectionsHandler.getScheduledConnections().size();
+		List<ScheduledConnectionsHandler.ScheduledConnection> connections
+				= scheduledConnectionsHandler.getScheduledConnections();
+
+		int size = 0;
+		//noinspection ForLoopReplaceableByForEach
+		for (int i = 0; i < connections.size(); i++) {
+			ScheduledConnectionsHandler.ScheduledConnection connection = connections.get(i);
+			if (connection != null && connection.getConnection() != null) {
+				size++;
+			}
+		}
+
+		return size;
 	}
 
 	@Override
 	public ScheduledConnectionsHandler.ScheduledConnection getElementAt(int index) {
-		List<ScheduledConnectionsHandler.ScheduledConnection> list
+		List<ScheduledConnectionsHandler.ScheduledConnection> connections
 				= scheduledConnectionsHandler.getScheduledConnections();
-		return index >= 0 && index < list.size() ? list.get(index) : null;
+
+		int j = 0;
+		//noinspection ForLoopReplaceableByForEach
+		for (int i = 0; i < connections.size(); i++) {
+			ScheduledConnectionsHandler.ScheduledConnection connection = connections.get(i);
+			if (connection != null && connection.getConnection() != null) {
+				if (j == index) {
+					return connection;
+				}
+				j++;
+			}
+		}
+
+		return null;
 	}
 
 	public void fireUpdate() {
