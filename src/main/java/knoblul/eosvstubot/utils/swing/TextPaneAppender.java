@@ -15,6 +15,7 @@
  */
 package knoblul.eosvstubot.utils.swing;
 
+import knoblul.eosvstubot.gui.BotMainWindow;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.Filter;
 import org.apache.logging.log4j.core.Layout;
@@ -59,6 +60,8 @@ public class TextPaneAppender extends AbstractAppender {
 		}
 	};
 
+	public static boolean wasConsoleErrors;
+
 	private TextPaneAppender(String name, Layout<?> layout, Filter filter, boolean ignoreExceptions) {
 		super(name, filter, layout, ignoreExceptions, Property.EMPTY_ARRAY);
 	}
@@ -86,7 +89,15 @@ public class TextPaneAppender extends AbstractAppender {
 	@Override
 	public void append(@NotNull LogEvent event) {
 		// если ошибка, цвет текста = красный, иначе черный
-		Color color = event.getLevel().isMoreSpecificThan(Level.WARN) ? Color.RED.brighter().brighter() : Color.BLACK;
+		boolean err = event.getLevel().isMoreSpecificThan(Level.WARN);
+		if (err) {
+			wasConsoleErrors = true;
+			if (BotMainWindow.instance != null) {
+				BotMainWindow.instance.markConsoleErrors();
+			}
+		}
+
+		Color color = err ? Color.RED.brighter().brighter() : Color.BLACK;
 		StyleContext context = StyleContext.getDefaultStyleContext();
 		AttributeSet attributes = context.addAttribute(SimpleAttributeSet.EMPTY, StyleConstants.Foreground, color);
 

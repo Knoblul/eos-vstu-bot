@@ -23,6 +23,7 @@ import knoblul.eosvstubot.utils.swing.TimeChooser;
 import javax.swing.*;
 import java.awt.*;
 import java.util.Calendar;
+import java.util.concurrent.TimeUnit;
 
 import static knoblul.eosvstubot.gui.schedule.ScheduleTableModel.*;
 
@@ -34,15 +35,14 @@ import static knoblul.eosvstubot.gui.schedule.ScheduleTableModel.*;
  * @author Knoblul
  */
 class LessonEditDialog extends JComponent {
-	private static final Integer[] COMBO_WEEK_DAYS = new Integer[] {
-			Calendar.MONDAY,
-			Calendar.TUESDAY,
-			Calendar.WEDNESDAY,
-			Calendar.THURSDAY,
-			Calendar.FRIDAY,
-			Calendar.SATURDAY,
-			Calendar.SUNDAY,
-	};
+	private static final Integer[] COMBO_WEEK_DAYS;
+
+	static {
+		COMBO_WEEK_DAYS = new Integer[7];
+		for (int i = Calendar.SUNDAY; i <= Calendar.SATURDAY; i++) {
+			COMBO_WEEK_DAYS[ScheduleManagerComponent.convertWeekNumberToIndex(i)] = i;
+		}
+	}
 
 	private JTextField nameField;
 	private JTextField teacherField;
@@ -135,11 +135,7 @@ class LessonEditDialog extends JComponent {
 	}
 
 	boolean showDialog(LessonsManager lessonsManager, int weekIndex, Lesson editingLesson) {
-		Calendar calendar = Calendar.getInstance();
-		if (editingLesson != null) {
-			calendar.setTimeInMillis(editingLesson.getScheduleTime());
-		}
-
+		Calendar calendar = editingLesson != null ? editingLesson.getRelativeCalendar() : Calendar.getInstance();
 		nameField.setText(editingLesson != null ? editingLesson.getName() : "");
 		teacherField.setText(editingLesson != null ? editingLesson.getTeacher() : "");
 		dayOfWeekComboBox.setSelectedItem(calendar.get(Calendar.DAY_OF_WEEK));
@@ -154,15 +150,10 @@ class LessonEditDialog extends JComponent {
 		}
 
 		Lesson lesson = editingLesson != null ? editingLesson : lessonsManager.createLesson(weekIndex);
-		Calendar scheduleCalendar = Calendar.getInstance();
-		scheduleCalendar.setTimeInMillis(0);
-		scheduleCalendar.set(Calendar.DAY_OF_WEEK, (int) dayOfWeekComboBox.getSelectedItem());
-		scheduleCalendar.set(Calendar.HOUR, timeSpinner.getHour());
-		scheduleCalendar.set(Calendar.MINUTE, timeSpinner.getMinute());
-		scheduleCalendar.set(Calendar.SECOND, timeSpinner.getSecond());
+		long scheduleTime = TimeUnit.DAYS.toMillis(dayOfWeekComboBox.getSelectedIndex()) + timeSpinner.getTimeMillis();
 		lesson.setName(nameField.getText().trim());
 		lesson.setTeacher(teacherField.getText().trim());
-		lesson.setScheduleTime(scheduleCalendar.getTimeInMillis());
+		lesson.setScheduleTime(scheduleTime);
 		lesson.setWeekIndex(weekIndex);
 		lesson.setDuration(durationSpinner.getTimeMillis());
 		lesson.setChatId(chatIdField.getText().trim());

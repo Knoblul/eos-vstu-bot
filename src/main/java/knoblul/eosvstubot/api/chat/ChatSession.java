@@ -15,11 +15,21 @@
  */
 package knoblul.eosvstubot.api.chat;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.chat.action.ChatAction;
+import knoblul.eosvstubot.api.chat.listening.ChatActionListener;
+import knoblul.eosvstubot.api.chat.listening.ChatConnectionListener;
 import knoblul.eosvstubot.api.profile.Profile;
+import knoblul.eosvstubot.gui.chat.ChatComponent;
 
+import java.lang.reflect.Constructor;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * <br><br>Module: eos-vstu-bot
@@ -31,6 +41,9 @@ public class ChatSession {
 	private final String chatIndexLink;
 
 	private Map<Profile, ChatConnection> connections = Maps.newHashMap();
+
+	private Set<ChatActionListener> chatActionListeners = Sets.newHashSet();
+	private Set<ChatConnectionListener> chatConnectionListeners = Sets.newHashSet();
 
 	public ChatSession(BotContext context, String chatIndexLink) {
 		this.context = context;
@@ -53,6 +66,43 @@ public class ChatSession {
 		connections.values().removeIf(chatConnection -> !chatConnection.update());
 	}
 
+	public void addChatActionListener(ChatActionListener listener) {
+		chatActionListeners.add(listener);
+	}
+
+	public void addChatConnectionListener(ChatConnectionListener listener) {
+		chatConnectionListeners.add(listener);
+	}
+
+	public void addChatConnectionCompletedListener(Consumer<ChatConnection> listener) {
+		chatConnectionListeners.add(new ChatConnectionListener() {
+			@Override
+			public void completed(ChatConnection connection) {
+				listener.accept(connection);
+			}
+
+			@Override
+			public void failed(ChatConnection connection, Throwable error) {
+
+			}
+		});
+	}
+
+	void onChatAction(ChatAction action) {
+		context.invokeMainThreadCommand(() ->
+			chatActionListeners.forEach(listener -> listener.action(action)));
+	}
+
+	void onConnectionFailed(ChatConnection connection, Throwable error) {
+		context.invokeMainThreadCommand(() ->
+				chatConnectionListeners.forEach(listener -> listener.failed(connection, error)));
+	}
+
+	void onConnectionCompleted(ChatConnection connection) {
+		context.invokeMainThreadCommand(() ->
+				chatConnectionListeners.forEach(listener -> listener.completed(connection)));
+	}
+
 	public ChatConnection createConnection(Profile profile) {
 		if (context.mainThread != Thread.currentThread()) {
 			throw new IllegalStateException("This function must only be called from main thread");
@@ -65,7 +115,7 @@ public class ChatSession {
 		if (context.mainThread != Thread.currentThread()) {
 			throw new IllegalStateException("This function must only be called from main thread");
 		}
-
+		connection.close();
 		connections.values().remove(connection);
 	}
 
@@ -74,6 +124,7 @@ public class ChatSession {
 			throw new IllegalStateException("This function must only be called from main thread");
 		}
 
+		connections.values().forEach(ChatConnection::close);
 		connections.clear();
 	}
 }

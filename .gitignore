@@ -19,6 +19,7 @@
 # Файлы/папки приложения
 profiles.json
 schedule.json
+chat.json
 
 # файлы капчуров страниц из мозилы
 moz-captures/

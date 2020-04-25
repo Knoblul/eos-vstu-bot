@@ -20,6 +20,7 @@ import knoblul.eosvstubot.api.schedule.LessonsManager;
 import javax.swing.*;
 import java.awt.*;
 import java.text.DateFormatSymbols;
+import java.util.Calendar;
 
 /**
  * Компонент менеджера расписания.
@@ -78,5 +79,17 @@ public class ScheduleManagerComponent extends JComponent {
 		add(bottomPanel, BorderLayout.SOUTH);
 
 		updateWeekLabel();
+	}
+
+	public static int convertWeekNumberToIndex(int idx) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek());
+		for (int i = 0; i < 7; i++) {
+			calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek()+i);
+			if (calendar.get(Calendar.DAY_OF_WEEK) == idx) {
+				return i;
+			}
+		}
+		throw new IllegalArgumentException("Unkown calendar week indx: " + idx);
 	}
 }

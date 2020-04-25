@@ -42,7 +42,11 @@ public class ChatConnectionConfiguration {
 	private String theme;
 	private long pingPeriod;
 
-	public void parse(@NotNull Document chatPage, @NotNull String chatPageLink) throws IOException {
+	ChatConnectionConfiguration() {
+
+	}
+
+	void parse(@NotNull Document chatPage, @NotNull String chatPageLink) throws IOException {
 		String scriptsContent = chatPage.select("script").html();
 
 		Matcher m = chatModuleSettingsPattern.matcher(scriptsContent);

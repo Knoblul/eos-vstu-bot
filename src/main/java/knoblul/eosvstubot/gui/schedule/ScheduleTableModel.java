@@ -83,21 +83,19 @@ class ScheduleTableModel extends AbstractTableModel {
 		if (getColumnName(columnIndex) != null) {
 			Lesson lesson = table.getLessonsManager().getLesson(table.getWeekIndex(), rowIndex);
 			if (lesson != null) {
-				Calendar scheduleCalendar = Calendar.getInstance();
-				scheduleCalendar.setTimeInMillis(lesson.getScheduleTime());
+				Calendar calendar = lesson.getRelativeCalendar();
 				switch (columnIndex) {
 					case COLUMN_DAY_OF_WEEK:
 						// нормализация дня недели для сортера
-						int day = scheduleCalendar.get(Calendar.DAY_OF_WEEK);
-						return day == Calendar.SUNDAY ? Calendar.SATURDAY+1 : day;
+						return ScheduleManagerComponent.convertWeekNumberToIndex(calendar.get(Calendar.DAY_OF_WEEK));
 					case COLUMN_LESSON:
 						return lesson.getName();
 					case COLUMN_TEACHER:
 						return lesson.getTeacher();
 					case COLUMN_TIME:
-						scheduleCalendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY);
-						long timeWithoutDays = scheduleCalendar.getTimeInMillis();
-						scheduleCalendar.setTimeInMillis(lesson.getScheduleTime());
+						calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek());
+						long timeWithoutDays = calendar.getTimeInMillis();
+						calendar.setTimeInMillis(lesson.getScheduleTime());
 						return timeWithoutDays;
 					case COLUMN_DURATION:
 						return String.format("%02d:%02d:%02d",

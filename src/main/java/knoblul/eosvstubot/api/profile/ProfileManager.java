@@ -15,6 +15,7 @@
  */
 package knoblul.eosvstubot.api.profile;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -24,7 +25,9 @@ import com.google.gson.JsonParseException;
 import knoblul.eosvstubot.api.BotConstants;
 import knoblul.eosvstubot.api.BotContext;
 import knoblul.eosvstubot.utils.Log;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jsoup.nodes.Document;
@@ -33,6 +36,7 @@ import org.jsoup.select.Elements;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -142,6 +146,13 @@ public class ProfileManager {
 
 			profile.setProfileName(profileNameElement.first().text().trim());
 			profile.setProfileLink(profileLinkElement.first().attr("href").trim());
+
+			List<NameValuePair> pairs = URLEncodedUtils.parse(URI.create(profile.getProfileLink()), Charsets.UTF_8);
+			for (NameValuePair pair: pairs) {
+				if (pair.getName().equals("id")) {
+					profile.setProfileId(pair.getValue());
+				}
+			}
 		}
 	}
 

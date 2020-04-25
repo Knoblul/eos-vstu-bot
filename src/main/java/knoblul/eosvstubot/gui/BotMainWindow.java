@@ -17,7 +17,9 @@ package knoblul.eosvstubot.gui;
 
 import knoblul.eosvstubot.api.BotConstants;
 import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
 import knoblul.eosvstubot.api.profile.Profile;
+import knoblul.eosvstubot.gui.chat.ChatComponent;
 import knoblul.eosvstubot.gui.profile.ProfileTable;
 import knoblul.eosvstubot.gui.schedule.ScheduleManagerComponent;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
@@ -38,11 +40,16 @@ import java.awt.event.WindowEvent;
 public class BotMainWindow extends JFrame {
 	public static BotMainWindow instance;
 	private final BotContext context;
+	private final ScheduledConnectionsHandler scheduledConnectionsHandler;
+
+	private JTabbedPane tabs;
 	private ScheduleManagerComponent scheduleManagerComponent;
+	private JComponent consoleComponent;
 
 	public BotMainWindow(BotContext context) {
 		instance = this;
 		this.context = context;
+		this.scheduledConnectionsHandler = context.registerHandler(ScheduledConnectionsHandler.class);
 
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -60,7 +67,6 @@ public class BotMainWindow extends JFrame {
 		});
 
 		fill();
-		setVisible(true);
 
 		// если в списке профилей хотя бы один не смог зайти на сайт,
 		// то выводим предупреждение
@@ -72,12 +78,35 @@ public class BotMainWindow extends JFrame {
 
 	private void fill() {
 		setLayout(new BorderLayout());
-		JTabbedPane tabs = new JTabbedPane();
+		tabs = new JTabbedPane();
 		tabs.addTab("Пользователи", new ProfileTable(context.getProfileManager()));
 		tabs.addTab("Расписание", scheduleManagerComponent = new ScheduleManagerComponent(context.getLessonsManager()));
-		tabs.addTab("Консоль", new JScrollPane(TextPaneAppender.consoleComponent, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
-				JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED));
+		tabs.addTab("Чаты", new ChatComponent(scheduledConnectionsHandler));
+		tabs.addTab("Консоль", consoleComponent = new JScrollPane(TextPaneAppender.consoleComponent,
+				JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,  JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED));
+
+		int consoleIndex = tabs.indexOfComponent(consoleComponent);
+		Color originalConsoleColor = tabs.getForegroundAt(consoleIndex);
+		tabs.addChangeListener(cl -> {
+			if (tabs.getSelectedIndex() == consoleIndex) {
+				tabs.setForegroundAt(consoleIndex, originalConsoleColor);
+			}
+		});
+
+		if (TextPaneAppender.wasConsoleErrors) {
+			tabs.setForegroundAt(consoleIndex, Color.RED.brighter().brighter());
+		}
+
 		add(tabs, BorderLayout.CENTER);
+	}
+
+	public void markConsoleErrors() {
+		SwingUtilities.invokeLater(() -> {
+			try {
+				int consoleIndex = tabs.indexOfComponent(consoleComponent);
+				tabs.setForegroundAt(consoleIndex, Color.RED.brighter().brighter());
+			} catch (Throwable ignored) { }
+		});
 	}
 
 	public void update() {

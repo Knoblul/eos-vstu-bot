@@ -45,8 +45,7 @@ class ScheduleTableRenderer extends DefaultTableCellRenderer {
 		int modelRow = t.convertRowIndexToModel(row);
 		Lesson lesson = table.getLessonsManager().getLesson(table.getWeekIndex(), modelRow);
 		if (lesson != null) {
-			Calendar calendar = Calendar.getInstance();
-			calendar.setTimeInMillis(lesson.getScheduleTime());
+			Calendar calendar = lesson.getRelativeCalendar();
 			switch (modelColumn) {
 				case ScheduleTableModel.COLUMN_DAY_OF_WEEK:
 					label.setText(StringUtils.capitalize(ScheduleManagerComponent.WEEKDAY_NAMES[calendar.get(Calendar.DAY_OF_WEEK)]));

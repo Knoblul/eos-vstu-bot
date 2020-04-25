@@ -17,6 +17,7 @@ package knoblul.eosvstubot;
 
 import knoblul.eosvstubot.api.BotConstants;
 import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
 import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.utils.Log;
 
@@ -41,14 +42,17 @@ public class BotGUI {
 
 			// создаем и открываем гуи компоненты
 			BotMainWindow window = new BotMainWindow(context);
+			window.setVisible(true);
 
 			// кормим поток контексту
 			context.occupyMainThread();
-
-			// после того, как контекст отпустил поток - удаляем окно
-			window.setVisible(false);
-			window.dispose();
 		} finally {
+			// после того, как контекст отпустил поток - удаляем окно
+			if (BotMainWindow.instance != null) {
+				BotMainWindow.instance.setVisible(false);
+				BotMainWindow.instance.dispose();
+			}
+
 			context.destroy();
 		}
 	}

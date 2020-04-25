@@ -143,21 +143,8 @@ public class LessonsManager {
 		int currentWeekIndex = getCurrentWeekIndex();
 		List<Lesson> lessons = getWeekLessons(currentWeekIndex);
 		for (Lesson lesson: lessons) {
-			Calendar lessonScheduleCalendar = Calendar.getInstance();
-			lessonScheduleCalendar.setTimeInMillis(lesson.getScheduleTime());
-			int lessonWeekIndex = lesson.getWeekIndex();
 			long lessonDuration = lesson.getDuration();
-
-			Calendar lessonStartCalendar = Calendar.getInstance();
-			lessonStartCalendar.set(Calendar.DAY_OF_WEEK, lessonScheduleCalendar.get(Calendar.DAY_OF_WEEK));
-			lessonStartCalendar.set(Calendar.HOUR, lessonScheduleCalendar.get(Calendar.HOUR_OF_DAY));
-			lessonStartCalendar.set(Calendar.MINUTE, lessonScheduleCalendar.get(Calendar.MINUTE));
-			lessonStartCalendar.set(Calendar.SECOND, lessonScheduleCalendar.get(Calendar.SECOND));
-			if (currentWeekIndex != lessonWeekIndex) {
-				// если сейчас номер недели отличен от номера недели урока,
-				// то "переносим" урок на некст неделю
-				lessonStartCalendar.add(Calendar.WEEK_OF_MONTH, 1);
-			}
+			Calendar lessonStartCalendar = lesson.getRelativeCalendar();
 
 			// находим время, которое прошло с момента конца урока.
 			// если время меньше lessonDuration, то урок идет. Если больше, то

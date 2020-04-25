@@ -65,6 +65,14 @@ public class Profile {
 	private transient String profileLink = "";
 
 	/**
+	 * Айди профиля eos.vstu.ru.
+	 * Достается из параметра id в {@link #profileLink}
+	 * Значение этого поля должно устанавливаться только
+	 * при успешном входе в аккаунт.
+	 */
+	private transient String profileId = "";
+
+	/**
 	 * Куки сессии eos.vstu.ru
 	 */
 	private String[] cookies = new String[] { "", "" };
@@ -97,6 +105,14 @@ public class Profile {
 
 	public void setProfileLink(String profileLink) {
 		this.profileLink = profileLink;
+	}
+
+	public String getProfileId() {
+		return profileId;
+	}
+
+	public void setProfileId(String profileId) {
+		this.profileId = profileId;
 	}
 
 	/**
@@ -173,6 +189,7 @@ public class Profile {
 		// обнуляем имя профиля, ссылку профиля и куки
 		profileName = "";
 		profileLink = "";
+		profileId = "";
 		Arrays.fill(cookies, "");
 	}
 }

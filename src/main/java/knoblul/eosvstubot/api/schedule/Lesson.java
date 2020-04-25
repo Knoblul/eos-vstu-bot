@@ -15,6 +15,9 @@
  */
 package knoblul.eosvstubot.api.schedule;
 
+import java.util.Calendar;
+import java.util.concurrent.TimeUnit;
+
 /**
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 22.04.2020 12:28
@@ -100,5 +103,16 @@ public class Lesson {
 
 	public void setChatId(String chatId) {
 		this.chatId = chatId;
+	}
+
+	public Calendar getRelativeCalendar() {
+		Calendar calendar = Calendar.getInstance();
+		calendar.set(Calendar.HOUR_OF_DAY, 0);
+		calendar.clear(Calendar.MINUTE);
+		calendar.clear(Calendar.SECOND);
+		calendar.clear(Calendar.MILLISECOND);
+		calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek());
+		calendar.setTimeInMillis(calendar.getTimeInMillis() + scheduleTime);
+		return calendar;
 	}
 }

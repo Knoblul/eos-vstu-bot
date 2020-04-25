@@ -22,6 +22,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import knoblul.eosvstubot.api.BotContext;
 import knoblul.eosvstubot.api.schedule.Lesson;
+import knoblul.eosvstubot.gui.schedule.ScheduleManagerComponent;
+import knoblul.eosvstubot.utils.Log;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.jetbrains.annotations.NotNull;
@@ -32,10 +34,10 @@ import org.jsoup.select.Elements;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.text.DateFormatSymbols;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -133,7 +135,7 @@ public class VolgasuScheduleGenerator {
 						String[] shortWeekDays = new DateFormatSymbols(new Locale("RU")).getShortWeekdays();
 						for (int i = 0; i < shortWeekDays.length; i++) {
 							if (shortWeekDays[i].equalsIgnoreCase(currentDayOfWeek)) {
-								day = i;
+								day = ScheduleManagerComponent.convertWeekNumberToIndex(i);
 							}
 						}
 
@@ -145,25 +147,33 @@ public class VolgasuScheduleGenerator {
 							// получаем и вычисляем айди чата
 							String chatId = fetchChatId(context, eosIndex, title.toLowerCase().trim());
 
-							Calendar calendar = Calendar.getInstance();
-							calendar.setTimeInMillis(0);
-							calendar.set(Calendar.DAY_OF_WEEK, day);
-							calendar.set(Calendar.HOUR_OF_DAY, Integer.parseInt(time.split(":")[0]));
-							calendar.set(Calendar.MINUTE, Integer.parseInt(time.split(":")[1]));
-							calendar.set(Calendar.SECOND, 0);
+							String[] timeSplit = time.split(":");
+							long scheduleTime = TimeUnit.DAYS.toMillis(day)
+									+ TimeUnit.HOURS.toMillis(Integer.parseInt(timeSplit[0]))
+									+ TimeUnit.MINUTES.toMillis(Integer.parseInt(timeSplit[1]))
+									+ TimeUnit.SECONDS.toMillis(0);
 
 							Lesson lesson = new Lesson();
 							lesson.setName(title + ", " + type);
 							lesson.setTeacher(teacher);
-							lesson.setScheduleTime(calendar.getTimeInMillis());
+							lesson.setScheduleTime(scheduleTime);
 							lesson.setWeekIndex(currentWeek.contains("II") ? 1 : 0);
 							lesson.setDuration(Lesson.DEFAULT_LESSON_DURATION);
 							lesson.setChatId(chatId);
 							lessons.add(lesson);
+						} else {
+							Log.warn("Wrong condition: day == -1 (%d)", day);
 						}
+					} else {
+						Log.warn("Wrong condition: currentDayOfWeek == null (%s) || elements.size() == 4 (%d)",
+								currentDayOfWeek, elements.size());
 					}
 				}
 			}
+		}
+
+		if (lessons.isEmpty()) {
+			Log.warn("Schedule not generated. Table page content: %s", document.toString());
 		}
 
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();

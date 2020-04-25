@@ -24,10 +24,12 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import knoblul.eosvstubot.api.chat.ChatSession;
+import knoblul.eosvstubot.api.handlers.BotHandler;
 import knoblul.eosvstubot.api.profile.ProfileManager;
 import knoblul.eosvstubot.api.schedule.LessonsManager;
 import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.utils.Log;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
@@ -60,6 +62,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -121,6 +125,8 @@ public class BotContext {
 	private Queue<Runnable> mainThreadCommands = Queues.newConcurrentLinkedQueue();
 
 	private Map<URI, ChatSession> chatSessions = Maps.newHashMap();
+
+	private List<BotHandler> handlers = Lists.newArrayList();
 
 	public BotContext() {
 		mainThread = Thread.currentThread();
@@ -234,6 +240,7 @@ public class BotContext {
 			invokeMainThreadCommand(command);
 		}
 
+		handlers.forEach(BotHandler::update);
 		chatSessions.values().forEach(ChatSession::update);
 
 		if (BotMainWindow.instance != null) {
@@ -248,6 +255,26 @@ public class BotContext {
 	public void stopMainThreadCommandsProcessing() {
 		check();
 		mainThread.interrupt();
+	}
+
+	public <T extends BotHandler> T registerHandler(Class<T> handlerClass) {
+		check();
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This function must only be called from main thread");
+		}
+
+		Constructor<T> constructor = ConstructorUtils.getAccessibleConstructor(handlerClass, BotContext.class);
+		if (constructor == null) {
+			throw new IllegalArgumentException("Invalid BotHandler class: " + handlerClass);
+		}
+
+		try {
+			T instance = constructor.newInstance(this);
+			handlers.add(instance);
+			return instance;
+		} catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+			throw new RuntimeException("Failed to create BotHandler", e);
+		}
 	}
 
 	/**
@@ -578,18 +605,30 @@ public class BotContext {
 					return;
 				}
 
-				responseCallback.completed(obj);
+				try {
+					responseCallback.completed(obj);
+				} catch (Throwable t) {
+					t.printStackTrace();
+				}
 			}
 
 			@Override
 			public void failed(Exception ex) {
-				callStackTrace.initCause(ex);
-				responseCallback.failed(callStackTrace);
+				try {
+					callStackTrace.initCause(ex);
+					responseCallback.failed(callStackTrace);
+				} catch (Throwable t) {
+					t.printStackTrace();
+				}
 			}
 
 			@Override
 			public void cancelled() {
-				responseCallback.cancelled();
+				try {
+					responseCallback.cancelled();
+				} catch (Throwable t) {
+					t.printStackTrace();
+				}
 			}
 		});
 	}
