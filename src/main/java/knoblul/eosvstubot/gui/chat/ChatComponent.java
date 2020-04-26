@@ -21,13 +21,17 @@ import knoblul.eosvstubot.api.chat.ChatConnection;
 import knoblul.eosvstubot.api.chat.ChatSession;
 import knoblul.eosvstubot.api.chat.action.ChatMessage;
 import knoblul.eosvstubot.api.chat.listening.ChatConnectionListener;
-import knoblul.eosvstubot.api.schedule.ScheduledConnectionsHandler;
+import knoblul.eosvstubot.api.profile.Profile;
+import knoblul.eosvstubot.api.profile.ProfileManager;
 import knoblul.eosvstubot.api.schedule.Lesson;
+import knoblul.eosvstubot.api.schedule.ScheduledConnectionsHandler;
+import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.gui.chat.controls.ChatControlsComponent;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
+import org.jsoup.select.Elements;
 
 import javax.swing.*;
 import javax.swing.text.SimpleAttributeSet;
@@ -128,47 +132,95 @@ public class ChatComponent extends JComponent {
 			if (action.getUsers() != null) {
 				activeUsers.onUsersChanged(action.getUsers());
 			}
-			action.getNewMessages().forEach(this::insertMessage);
+			action.getNewMessages().forEach(message -> insertMessage(connection, message));
 		});
 	}
 
-	private void insertMessage(ChatMessage message) {
+	private void appendChatString(String text) {
+		chatPane.setEditable(true);
+		chatPane.setCaretPosition(chatPane.getDocument().getLength());
+		chatPane.replaceSelection(text);
+		chatPane.setCaretPosition(chatPane.getDocument().getLength());
+		chatPane.setEditable(false);
+	}
+
+	private void setChatAttribute(Object name, Object value) {
+		StyleContext styleContext = StyleContext.getDefaultStyleContext();
+		chatPane.setCharacterAttributes(styleContext.addAttribute(SimpleAttributeSet.EMPTY, name, value), false);
+	}
+
+	private boolean isPokeMessage(ChatMessage message) {
+		ChatMessage.MessageType messageType = message.getMessageType();
+		if (messageType == ChatMessage.MessageType.BEEP) {
+			return true;
+		} else if (messageType == ChatMessage.MessageType.DIALOGUE) {
+			Elements textElements = message.getMessageDocument().select(".chat-message .text");
+			String to = textElements.select("i").text();
+			ProfileManager profileManager = scheduledConnectionsHandler.getContext().getProfileManager();
+			List<Profile> profiles = profileManager.getProfiles();
+			for (int i = 0; i < profiles.size(); i++) {
+				Profile profile = profileManager.getProfile(i);
+				if (profile != null && profile.isValid() && profile.getProfileName().equalsIgnoreCase(to)) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	private void insertMessage(ChatConnection connection, ChatMessage message) {
 		if (receivedMessages.contains(message)) {
 			return;
 		}
-
 		receivedMessages.add(message);
 
-		StyleContext sc = StyleContext.getDefaultStyleContext();
-		Color senderColor = message.isSystemMessage() ? new Color(150, 50, 50)
-				: new Color(50, 50, 150);
-		String sender = message.isSystemMessage() ? "(СИСТЕМА)" :
+		ChatMessage.MessageType messageType = message.getMessageType();
+		boolean pokeMessage = isPokeMessage(message);
+		String sender = messageType == ChatMessage.MessageType.SYSTEM ? "(СИСТЕМА)" :
 				String.format("(%s#%s)", message.getUser(), message.getUserId());
-		String text = sender + ": " + message.getText();
 
-		CHAT_LOGGER.log(Level.INFO, text);
+		setChatAttribute(StyleConstants.Background, pokeMessage ? new Color(230, 180, 180) : Color.WHITE);
+		setChatAttribute(StyleConstants.Foreground, Color.BLACK);
+		// временная метка
+		appendChatString("[" + message.getTime() + "] ");
 
-		chatPane.setEditable(true);
+		// отправитель
+		setChatAttribute(StyleConstants.Foreground, messageType == ChatMessage.MessageType.SYSTEM
+				? new Color(150, 50, 50)
+				: new Color(50, 50, 150)
+		);
+		appendChatString(sender);
+		setChatAttribute(StyleConstants.Foreground, Color.BLACK);
+		appendChatString(": ");
 
-		chatPane.setCaretPosition(chatPane.getDocument().getLength());
-		chatPane.setCharacterAttributes(sc.addAttribute(SimpleAttributeSet.EMPTY,
-				StyleConstants.Foreground, Color.BLACK), false);
-		chatPane.replaceSelection("[" + message.getTime() + "] ");
-		chatPane.setCaretPosition(chatPane.getDocument().getLength());
+		String consoleText;
+		if (messageType == ChatMessage.MessageType.DIALOGUE) {
+			Elements textElements = message.getMessageDocument().select(".chat-message .text");
+			String to = textElements.select("i").text();
+			String text = textElements.select("p").text();
 
-		chatPane.setCaretPosition(chatPane.getDocument().getLength());
-		chatPane.setCharacterAttributes(sc.addAttribute(SimpleAttributeSet.EMPTY,
-				StyleConstants.Foreground, senderColor), false);
-		chatPane.replaceSelection(sender + ": ");
-		chatPane.setCaretPosition(chatPane.getDocument().getLength());
+			setChatAttribute(StyleConstants.Bold, Boolean.TRUE);
+			setChatAttribute(StyleConstants.Italic, Boolean.TRUE);
+			appendChatString("@(" + to + ")");
+			setChatAttribute(StyleConstants.Italic, Boolean.FALSE);
+			setChatAttribute(StyleConstants.Bold, Boolean.FALSE);
+			appendChatString(" " + text);
 
-		chatPane.setCaretPosition(chatPane.getDocument().getLength());
-		chatPane.setCharacterAttributes(sc.addAttribute(SimpleAttributeSet.EMPTY,
-				StyleConstants.Foreground, Color.BLACK), false);
-		chatPane.replaceSelection(message.getText() + "\n");
-		chatPane.setCaretPosition(chatPane.getDocument().getLength());
+			consoleText = "@(" + to + ") " + text;
+		} else if (messageType == ChatMessage.MessageType.BEEP) {
+			appendChatString(consoleText = "Отправил сигнал к " + connection.getProfile());
+		} else {
+			appendChatString(consoleText = message.getText());
+		}
 
-		chatPane.setEditable(false);
+		CHAT_LOGGER.log(Level.INFO, (pokeMessage ? "[УПОМИНАНИЕ] " : "") + sender + ": " + consoleText);
+		if (pokeMessage) {
+			BotMainWindow.instance.markChatNotifies();
+		}
+
+		setChatAttribute(StyleConstants.Background, Color.WHITE);
+		setChatAttribute(StyleConstants.Foreground, Color.BLACK);
+		appendChatString("\n");
 	}
 
 	private JComponent createDisabledComponent() {

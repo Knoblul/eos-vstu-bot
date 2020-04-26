@@ -38,16 +38,31 @@ public class ChatMessage {
 	private String userId;
 
 	private String text;
-	private boolean systemMessage;
+	private Document messageDocument;
+
+	public enum MessageType {
+		SYSTEM,
+		MESSAGE,
+		BEEP,
+		DIALOGUE,
+	}
+
+	private MessageType messageType = MessageType.MESSAGE;
 
 	ChatMessage(JsonObject jsonObject) {
 		parse(jsonObject);
 	}
 
 	private void parse(JsonObject jsonObject) {
-		systemMessage = jsonObject.has("system") && jsonObject.get("system").getAsString().equals("1");
-		if (jsonObject.has("type")) {
-			systemMessage |= jsonObject.get("type").getAsString().equalsIgnoreCase("system");
+//		systemMessage = jsonObject.has("system") && jsonObject.get("system").getAsString().equals("1");
+//		if (jsonObject.has("type")) {
+//			systemMessage |= jsonObject.get("type").getAsString().equalsIgnoreCase("system");
+//		}
+
+		if (jsonObject.has("system") && jsonObject.get("system").getAsString().equals("1")) {
+			messageType = MessageType.SYSTEM;
+		} else if (jsonObject.has("type")) {
+			messageType = MessageType.valueOf(jsonObject.get("type").getAsString().toUpperCase());
 		}
 
 		// нужно для получения верной хешсумы сообщения
@@ -57,18 +72,24 @@ public class ChatMessage {
 		userId = jsonObject.get("userid").getAsString();
 
 		String messageContent = StringEscapeUtils.unescapeJson(jsonObject.get("message").getAsString());
-		Document messageDocument = Jsoup.parse(messageContent, "");
+		messageDocument = Jsoup.parse(messageContent, "");
 
-		if (systemMessage) {
-			Elements chatEventElements = messageDocument.select(".chat-event");
-			user = "";
-			text = chatEventElements.select(".event").text();
-			time = chatEventElements.select(".time").text();
-		} else {
-			Elements chatMessageElements = messageDocument.select(".chat-message");
-			user = chatMessageElements.select(".user a").text();
-			text = chatMessageElements.select(".text").text();
-			time = chatMessageElements.select(".time").text();
+		Elements elements;
+		switch (messageType) {
+			case SYSTEM:
+				elements = messageDocument.select(".chat-event");
+				time = elements.select(".time").text();
+				user = "";
+				text = elements.select(".event").text();
+				break;
+			case MESSAGE:
+			case BEEP:
+			case DIALOGUE:
+				elements = messageDocument.select(".chat-message");
+				time = elements.select(".chat-message-meta .time").text();
+				user = elements.select(".chat-message-meta .user a").text();
+				text = elements.select(".text").text();
+				break;
 		}
 	}
 
@@ -76,8 +97,8 @@ public class ChatMessage {
 		return time;
 	}
 
-	public boolean isSystemMessage() {
-		return systemMessage;
+	public MessageType getMessageType() {
+		return messageType;
 	}
 
 	public String getUser() {
@@ -92,21 +113,25 @@ public class ChatMessage {
 		return text;
 	}
 
+	public Document getMessageDocument() {
+		return messageDocument;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		ChatMessage message = (ChatMessage) o;
-		return systemMessage == message.systemMessage &&
-				user.equals(message.user) &&
-				userId.equals(message.userId) &&
-				text.equals(message.text) &&
-				time.equals(message.time) &&
-				id.equals(message.id);
+		return Objects.equals(id, message.id) &&
+				Objects.equals(time, message.time) &&
+				Objects.equals(user, message.user) &&
+				Objects.equals(userId, message.userId) &&
+				Objects.equals(text, message.text) &&
+				messageType == message.messageType;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(time, user, userId, text, systemMessage);
+		return Objects.hash(id, time, user, userId, text, messageType);
 	}
 }

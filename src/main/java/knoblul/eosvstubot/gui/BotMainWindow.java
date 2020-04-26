@@ -47,6 +47,7 @@ public class BotMainWindow extends JFrame implements BotHandler {
 	private JTabbedPane tabs;
 	private ScheduleManagerComponent scheduleManagerComponent;
 	private JComponent consoleComponent;
+	private JComponent chatComponent;
 
 	@SuppressWarnings("unused")
 	public BotMainWindow(@NotNull BotContext context) {
@@ -84,7 +85,7 @@ public class BotMainWindow extends JFrame implements BotHandler {
 		tabs = new JTabbedPane();
 		tabs.addTab("Пользователи", new ProfileTable(context.getProfileManager()));
 		tabs.addTab("Расписание", scheduleManagerComponent = new ScheduleManagerComponent(context.getLessonsManager()));
-		tabs.addTab("Чаты", new ChatComponent(scheduledConnectionsHandler));
+		tabs.addTab("Чаты", chatComponent = new ChatComponent(scheduledConnectionsHandler));
 		tabs.addTab("Консоль", consoleComponent = new JScrollPane(TextPaneAppender.consoleComponent,
 				JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,  JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED));
 
@@ -93,6 +94,14 @@ public class BotMainWindow extends JFrame implements BotHandler {
 		tabs.addChangeListener(cl -> {
 			if (tabs.getSelectedIndex() == consoleIndex) {
 				tabs.setForegroundAt(consoleIndex, originalConsoleColor);
+			}
+		});
+
+		int chatIndex = tabs.indexOfComponent(chatComponent);
+		Color originalChatColor = tabs.getForegroundAt(chatIndex);
+		tabs.addChangeListener(cl -> {
+			if (tabs.getSelectedIndex() == chatIndex) {
+				tabs.setForegroundAt(chatIndex, originalChatColor);
 			}
 		});
 
@@ -108,7 +117,18 @@ public class BotMainWindow extends JFrame implements BotHandler {
 			try {
 				int consoleIndex = tabs.indexOfComponent(consoleComponent);
 				if (tabs.getSelectedIndex() != consoleIndex) {
-					tabs.setForegroundAt(consoleIndex, Color.RED.brighter().brighter());
+					tabs.setForegroundAt(consoleIndex, new Color(190, 0, 0));
+				}
+			} catch (Throwable ignored) { }
+		});
+	}
+
+	public void markChatNotifies() {
+		SwingUtilities.invokeLater(() -> {
+			try {
+				int chatIndex = tabs.indexOfComponent(chatComponent);
+				if (tabs.getSelectedIndex() != chatIndex) {
+					tabs.setForegroundAt(chatIndex, new Color(190, 150, 20));
 				}
 			} catch (Throwable ignored) { }
 		});
