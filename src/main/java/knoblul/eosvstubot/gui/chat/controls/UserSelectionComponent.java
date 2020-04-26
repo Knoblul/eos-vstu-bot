@@ -18,7 +18,11 @@ package knoblul.eosvstubot.gui.chat.controls;
 import knoblul.eosvstubot.api.chat.ChatConnection;
 import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
 
+import javax.accessibility.Accessible;
 import javax.swing.*;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.plaf.basic.BasicComboPopup;
 import java.awt.*;
 
 /**
@@ -29,6 +33,7 @@ import java.awt.*;
  */
 public class UserSelectionComponent extends JComboBox<ScheduledConnectionsHandler.ScheduledConnection> {
 	private UserSelectionModel model;
+	private boolean expanded;
 
 	UserSelectionComponent(ScheduledConnectionsHandler scheduledConnectionsHandler) {
 		setModel(model = new UserSelectionModel(scheduledConnectionsHandler));
@@ -49,6 +54,43 @@ public class UserSelectionComponent extends JComboBox<ScheduledConnectionsHandle
 			}
 		});
 		setPreferredSize(new Dimension(100, 30));
+		addPopupMenuListener(new PopupMenuListener() {
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+				expanded = true;
+			}
+
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+				expanded = false;
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent e) {
+
+			}
+		});
+	}
+
+	@Override
+	public Dimension getSize() {
+		if (expanded) {
+			Accessible child = getAccessibleContext().getAccessibleChild(0);
+			if (child instanceof BasicComboPopup) {
+				Dimension dims = super.getSize();
+				BasicComboPopup popup = (BasicComboPopup) child;
+				@SuppressWarnings("unchecked")
+				JList<ScheduledConnectionsHandler.ScheduledConnection> list = popup.getList();
+				for (int i = 0; i < model.getSize(); i++) {
+					Component c =
+							renderer.getListCellRendererComponent(list, model.getElementAt(i), i,
+									getSelectedIndex() == i, false);
+					dims.width = Math.max(c.getPreferredSize().width, dims.width);
+				}
+				return dims;
+			}
+		}
+		return super.getSize();
 	}
 
 	void fireUpdate() {
