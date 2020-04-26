@@ -5,8 +5,26 @@ plugins {
 group 'knoblul.eosvstubot'
 version '0.1.1'
 
-compileJava.options.encoding = "UTF-8"
+compileJava.options.encoding = 'UTF-8'
 sourceCompatibility = 1.8
+
+task copyRuntimeLibs(type: Copy) {
+    // собираем все зависимости в папку bin
+    into '/build/libs/bin'
+    from configurations.compileClasspath
+
+    doLast {
+        // делаем start.bat для пользователей вин
+        new File(projectDir, '/build/libs/start.bat').text =
+            'start javaw -cp "bin/*;'+jar.archiveFileName.get()+'" knoblul.eosvstubot.BotGUI\n'
+
+        // делаем start.sh для пользователей линукс
+        new File(projectDir, '/build/libs/start.sh').text =
+                'java -cp "bin/*;'+jar.archiveFileName.get()+'" knoblul.eosvstubot.BotGUI\n'
+    }
+}
+
+build.finalizedBy(copyRuntimeLibs)
 
 repositories {
     mavenCentral()
