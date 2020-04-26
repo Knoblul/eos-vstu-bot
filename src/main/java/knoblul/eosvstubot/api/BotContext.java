@@ -681,6 +681,11 @@ public class BotContext {
 			asyncClient = null;
 		}
 
+		for (ChatSession chatSession : chatSessions.values()) {
+			chatSession.close();
+		}
+		chatSessions.clear();
+
 		if (connectionProblemsDetector != null) {
 			connectionProblemsDetector.destroy();
 			connectionProblemsDetector = null;
