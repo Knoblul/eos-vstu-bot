@@ -651,10 +651,9 @@ public class BotContext {
 		requireValidContext();
 		requireMainThread();
 
-
 		Log.info("Trying to reconnect all context modules...");
-		handlers.forEach(BotHandler::reconnect);
 		profileManager.checkProfiles();
+		handlers.forEach(BotHandler::reconnect);
 	}
 
 	/**
