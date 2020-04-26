@@ -29,6 +29,7 @@ import java.io.PrintStream;
  * <br>Created: 21.04.2020 14:00
  * @author Knoblul
  */
+@SuppressWarnings("unused")
 public class Log {
 	private static final Logger LOGGER = LogManager.getLogger(BotConstants.NAME);
 

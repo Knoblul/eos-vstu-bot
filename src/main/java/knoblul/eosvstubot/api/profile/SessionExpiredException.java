@@ -15,7 +15,6 @@
  */
 package knoblul.eosvstubot.api.profile;
 
-import knoblul.eosvstubot.api.profile.Profile;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
