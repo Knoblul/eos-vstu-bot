@@ -368,7 +368,9 @@ public class ChatConnection {
 	 * http-запросы и освобождая ресурсы.
 	 */
 	public void destroy() {
-		Log.info("%s connection to chat '%s' closed", profile, configuration.getTitle());
+		if (!invalid) {
+			Log.info("%s connection to chat '%s' closed", profile, configuration.getTitle());
+		}
 
 		// отмечаем подключение недействительным и ненастроенным
 		invalid = true;
