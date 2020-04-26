@@ -20,9 +20,10 @@ import knoblul.eosvstubot.api.chat.action.ChatUserInformation;
 import javax.swing.*;
 
 /**
+ * Модель компонента списка активных пользователей в чате.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 19:31
- *
  * @author Knoblul
  */
 public class ActiveUsersModel extends AbstractListModel<ChatUserInformation> {

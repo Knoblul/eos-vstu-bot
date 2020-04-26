@@ -20,12 +20,15 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 
 /**
+ * Исключение, вызываемое при неудачной попытке проверки профиля,
+ * а именно, его сохраненых куки.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 26.04.2020 11:29
  * @author Knoblul
  */
 public class SessionExpiredException extends IOException {
 	public SessionExpiredException(@NotNull Profile profile) {
-		super("Session for " + profile.getAlias() + " expired");
+		super("Session for " + profile + " expired");
 	}
 }

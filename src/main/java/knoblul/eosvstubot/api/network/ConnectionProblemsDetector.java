@@ -22,20 +22,56 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 /**
+ * Простой детектор падений сети/сайта.
+ * В основной конструктор передеается имя хоста и коллбек.
+ * Каждые {@link #PING_PERIOD_TIME} миллисекунд в отдельном потоке этот
+ * класс пингует хост и передает результат в коллбек вместе с {@link #badAttempts}.
+ * Если пинг неудачен - счетчик {@link #badAttempts} увеличивается,
+ * а если удачен - сбрасывается.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 26.04.2020 1:04
- *
  * @author Knoblul
  */
 public class ConnectionProblemsDetector implements Runnable {
-	private static final int PING_PERIOD_TIME = 2000; // каждые 2 секунды пингуем хост
-	private static final int PING_TIMEOUT = 10000; // 10 секунд достаточно для таймаута
+	/**
+	 * Частота выполнения пинг-запроса.
+	 * Если пинг-запрос исполнялся дольше этого значения,
+	 * то "спячка" потока пропускается и выполняется следующий пинг-запрос.
+	 */
+	private static final int PING_PERIOD_TIME = 3000;
 
+	/**
+	 * Таймаут для отправки пинг-запроса на хост.
+	 * По истечению этого времени если хост не отправил
+	 * ответ, то попытка будет считаться неудачной.
+	 */
+	private static final int PING_TIMEOUT = 10000;
+
+	/**
+	 * Хост, который пинговать.
+	 */
 	private final String hostToPing;
+
+	/**
+	 * Коллбек, который вызывается после завершения
+	 * попытки пинг-запроса.
+	 */
 	private final BiConsumer<Integer, Boolean> updateCallback;
+
+	/**
+	 * Поток, в котором происходит цикл попыток
+	 */
 	private final Thread thread;
+
+	/**
+	 * Флаг, который
+	 */
 	private volatile boolean running;
 
+	/**
+	 * Счетчик "плохих" попыток
+	 */
 	private int badAttempts;
 
 	public ConnectionProblemsDetector(String hostToPing, BiConsumer<Integer, Boolean> updateCallback) {
@@ -46,6 +82,9 @@ public class ConnectionProblemsDetector implements Runnable {
 		thread.start();
 	}
 
+	/**
+	 * Останавливает поток
+	 */
 	public void destroy() {
 		running = false;
 		thread.interrupt();
@@ -63,15 +102,19 @@ public class ConnectionProblemsDetector implements Runnable {
 			sw.stop();
 
 			if (!reachable) {
+				// накапливаем неудачные попытки при неудаче
 				badAttempts++;
 			}
 
+			// отправляем результаты в коллбек
 			updateCallback.accept(badAttempts, reachable);
 
 			if (reachable) {
+				// сбрасываем неудачные попытки при удаче
 				badAttempts = 0;
 			}
 
+			// консервативный алгоритм для экономии времени между запросами.
 			long elapsed = sw.elapsed(TimeUnit.MILLISECONDS);
 			if (PING_PERIOD_TIME - elapsed > 0) {
 				try {

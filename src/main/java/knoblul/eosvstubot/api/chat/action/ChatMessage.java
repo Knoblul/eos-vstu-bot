@@ -24,12 +24,15 @@ import org.jsoup.select.Elements;
 import java.util.Objects;
 
 /**
+ * Содержит данные о сообщении, которое пришло в обновлении
+ * от сервера.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 17:14
  * @author Knoblul
  */
 public class ChatMessage {
-	private String timestamp;
+	private String id;
 	private String time;
 	private String user;
 	private String userId;
@@ -47,8 +50,11 @@ public class ChatMessage {
 			systemMessage |= jsonObject.get("type").getAsString().equalsIgnoreCase("system");
 		}
 
+		// нужно для получения верной хешсумы сообщения
+		// и правильного сравнения сообщений
+		id = jsonObject.get("id").getAsString();
+
 		userId = jsonObject.get("userid").getAsString();
-		timestamp = jsonObject.get("timestamp").getAsString();
 
 		String messageContent = StringEscapeUtils.unescapeJson(jsonObject.get("message").getAsString());
 		Document messageDocument = Jsoup.parse(messageContent, "");
@@ -96,11 +102,11 @@ public class ChatMessage {
 				userId.equals(message.userId) &&
 				text.equals(message.text) &&
 				time.equals(message.time) &&
-				timestamp.equals(message.timestamp);
+				id.equals(message.id);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(timestamp, time, user, userId, text, systemMessage);
+		return Objects.hash(time, user, userId, text, systemMessage);
 	}
 }

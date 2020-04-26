@@ -18,9 +18,13 @@ package knoblul.eosvstubot.api.schedule;
 import java.util.Calendar;
 
 /**
+ * Представление урока и его "расположения" в расписании.
+ * Этот объект хранит информацию об уроке (имя урока и препода),
+ * а так же информацию о "расположении" урока в расписании
+ * (неделя, время начала, продолжительность)
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 22.04.2020 12:28
- *
  * @author Knoblul
  */
 public class Lesson {

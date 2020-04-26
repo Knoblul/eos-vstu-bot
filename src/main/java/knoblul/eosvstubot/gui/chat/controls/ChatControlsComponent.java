@@ -15,7 +15,7 @@
  */
 package knoblul.eosvstubot.gui.chat.controls;
 
-import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
+import knoblul.eosvstubot.api.schedule.ScheduledConnectionsHandler;
 
 import javax.swing.*;
 import java.awt.*;
@@ -24,9 +24,11 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
 /**
+ * Компонент для "управления" чатом - позволяет отправлять
+ * любое сообщение от выбранного пользователя.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 20:19
- *
  * @author Knoblul
  */
 public class ChatControlsComponent extends JComponent {

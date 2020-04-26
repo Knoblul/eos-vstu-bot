@@ -15,7 +15,7 @@
  */
 package knoblul.eosvstubot.api.chat;
 
-import com.google.common.collect.Maps;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import knoblul.eosvstubot.api.BotContext;
 import knoblul.eosvstubot.api.chat.action.ChatAction;
@@ -24,25 +24,62 @@ import knoblul.eosvstubot.api.chat.listening.ChatConnectionListener;
 import knoblul.eosvstubot.api.profile.Profile;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
 /**
+ * Класс, который представляет собой чат-сессию.
+ * Основное предназначение - управление подключениями к чату.
+ * Чтобы создать новое подключение, достаточно вызова {@link #createConnection(Profile)}.
+ * <p>Чтобы обрабатывать подключения, например отлавливать ошибки или момент успешного входа в чат,
+ * нужно добавить листенер подключений с помощью {@link #addChatConnectionListener(ChatConnectionListener)}.</p>
+ * <p>Чтобы обрабатывать чат-события, которые приходят от созданных подключений,
+ * нужно добавить листенер событий с помощью {@link #addChatActionListener(ChatActionListener)}.</p>
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 24.04.2020 18:13
+ *
  * @author Knoblul
  */
 public class ChatSession {
+	/**
+	 * Контекст бота
+	 */
 	private final BotContext context;
+
+	/**
+	 * Ссылка на index.php чата
+	 */
 	private final String chatIndexLink;
 
-	private Map<Profile, ChatConnection> connections = Maps.newHashMap();
+	/**
+	 * Список всех созданных и действительных чат-подключений.
+	 * Удаленые чат-подключения будут автоматически чистится из этого
+	 * списка.
+	 */
+	private List<ChatConnection> connections = Lists.newArrayList();
 
-	private Set<ChatActionListener> chatActionListeners = Sets.newHashSet();
+	/**
+	 * Список всех листенеров чат-подключений
+	 */
 	private Set<ChatConnectionListener> chatConnectionListeners = Sets.newHashSet();
 
+	/**
+	 * Сприсок всех листенеров чат-событий
+	 */
+	private Set<ChatActionListener> chatActionListeners = Sets.newHashSet();
+
+	/**
+	 * Максимальное количество попыток реконнекта чат-подключений.
+	 */
 	private int maximumReconnectAttempts;
+
+	/**
+	 * Флаг, сигнализирующий контексту о том, что данная чат-сессия
+	 * является недействительной и подлежит удалению.
+	 */
+	private boolean destroyed;
 
 	public ChatSession(@NotNull BotContext context, @NotNull String chatIndexLink) {
 		this.context = context;
@@ -66,62 +103,123 @@ public class ChatSession {
 		this.maximumReconnectAttempts = maximumReconnectAttempts;
 	}
 
-	public void update() {
+	/**
+	 * Обновляет чат-сессию, обновляя все созданные чат-подключения.
+	 *
+	 * @return true, если {@link #destroyed} == <code>true</code>
+	 */
+	public boolean update() {
 		context.requireMainThread();
-		connections.values().removeIf(chatConnection -> !chatConnection.update());
+
+		// обновляем все подключения, удаляем те что недействительны
+		connections.removeIf(chatConnection -> !chatConnection.update());
+		return destroyed;
 	}
 
-	public void addChatActionListener(@NotNull ChatActionListener listener) {
-		chatActionListeners.add(listener);
-	}
-
+	/**
+	 * Добавляет листенер чат-подключений в список всех листенеров чат-подключений
+	 *
+	 * @param listener листенер чат-подключений
+	 */
 	public void addChatConnectionListener(@NotNull ChatConnectionListener listener) {
 		chatConnectionListeners.add(listener);
 	}
 
+	/**
+	 * Добавляет листенер <b>успешных</b> чат-подключений в список всех листенеров чат-подключений
+	 *
+	 * @param listener коллбек вызова {@link ChatConnectionListener#connected(ChatConnection)}
+	 */
 	public void addChatConnectionCompletedListener(@NotNull Consumer<ChatConnection> listener) {
 		chatConnectionListeners.add(new ChatConnectionListener() {
 			@Override
-			public void completed(ChatConnection connection) {
+			public void connected(ChatConnection connection) {
 				listener.accept(connection);
 			}
 
 			@Override
-			public void failed(ChatConnection connection, Throwable error) {
+			public void error(ChatConnection connection, Throwable error) {
 
 			}
 		});
 	}
 
-	void onChatAction(ChatAction action) {
-		context.invokeMainThreadCommand(() ->
-			chatActionListeners.forEach(listener -> listener.action(action)));
+	/**
+	 * Добавляет листенер чат-событий в список всех листенеров чат-событий
+	 *
+	 * @param listener листенер чат-событий
+	 */
+	public void addChatActionListener(@NotNull ChatActionListener listener) {
+		chatActionListeners.add(listener);
 	}
 
-	void onConnectionFailed(ChatConnection connection, Throwable error) {
+	/**
+	 * Вызывается из BotConnection при исключении, возникшем на момент попытки входа
+	 * в чат или на момент обработки чат-подключения.
+	 *
+	 * @param connection чат-подключение, из которого вызвался метод
+	 * @param error      исключение, произошедшее внутри чат-подключения
+	 */
+	void onConnectionError(ChatConnection connection, Throwable error) {
 		context.invokeMainThreadCommand(() ->
-				chatConnectionListeners.forEach(listener -> listener.failed(connection, error)));
+				chatConnectionListeners.forEach(listener -> listener.error(connection, error)));
 	}
 
+	/**
+	 * Вызывается из BotConnection при успешном входе в чат.
+	 *
+	 * @param connection чат-подключение, из которого вызвался метод
+	 */
 	void onConnectionCompleted(ChatConnection connection) {
 		context.invokeMainThreadCommand(() ->
-				chatConnectionListeners.forEach(listener -> listener.completed(connection)));
+				chatConnectionListeners.forEach(listener -> listener.connected(connection)));
 	}
 
+	/**
+	 * Вызывается из BotConnection при поступлении новго чат-события
+	 *
+	 * @param connection чат-подключение, из которого вызвался метод
+	 * @param action новое чат-событие
+	 */
+	void onChatAction(ChatConnection connection, ChatAction action) {
+		context.invokeMainThreadCommand(() ->
+				chatActionListeners.forEach(listener -> listener.action(connection, action)));
+	}
+
+	/**
+	 * Если чат-сессия уже хранит чат-подключение, которое представляется указанным профилем,
+	 * то возвращает созданное ранее чат-подключение из списка.
+	 * Иначе создает новое чат-подключение, которое сразу же пытается выполнить
+	 * вход в чат.
+	 *
+	 * @param profile профиль, которым будет представляться
+	 *                новосозданное подключение
+	 * @return новосозданное/существующее подключение, которое
+	 * представляется указанным профилем.
+	 */
 	public ChatConnection createConnection(@NotNull Profile profile) {
 		context.requireMainThread();
-		return connections.computeIfAbsent(profile, (k) -> new ChatConnection(this, profile));
+
+		for (ChatConnection chatConnection : connections) {
+			if (chatConnection.getProfile() == profile) {
+				throw new IllegalArgumentException(String.format("Connection to chat from profile '%s' already exists!",
+						profile.toString()));
+			}
+		}
+
+		ChatConnection chatConnection = new ChatConnection(this, profile);
+		connections.add(chatConnection);
+		return chatConnection;
 	}
 
-	public void destroyConnection(@NotNull ChatConnection connection) {
+	/**
+	 * Удаляет данную чат-сессию, закрывая все подключения
+	 * и высвобождая ресурсы.
+	 */
+	public void destroy() {
+		destroyed = true;
 		context.requireMainThread();
-		connection.close();
-		connections.values().remove(connection);
-	}
-
-	public void close() {
-		context.requireMainThread();
-		connections.values().forEach(ChatConnection::close);
+		connections.forEach(ChatConnection::destroy);
 		connections.clear();
 	}
 }

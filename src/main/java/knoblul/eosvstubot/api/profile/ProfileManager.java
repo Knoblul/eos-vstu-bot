@@ -24,6 +24,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import knoblul.eosvstubot.api.BotConstants;
 import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.BotHandler;
 import knoblul.eosvstubot.utils.Log;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -52,7 +53,7 @@ import java.util.Map;
  * <br>Created: 21.04.2020 16:49
  * @author Knoblul
  */
-public class ProfileManager {
+public class ProfileManager implements BotHandler {
 	// куки, хранящие moodle session
 	private static final String COOKIE_MID_NAME = "MOODLEID1_";
 	private static final String COOKIE_SESSION_NAME = "MoodleSession";
@@ -105,7 +106,7 @@ public class ProfileManager {
 			}
 		}
 		Log.info("Checking profiles...");
-		checkProfiles();
+		profiles.forEach(this::checkProfile);
 		save();
 	}
 
@@ -260,7 +261,7 @@ public class ProfileManager {
 		cookies[0] = context.getCookieValue(COOKIE_MID_NAME);
 		cookies[1] = context.getCookieValue(COOKIE_SESSION_NAME);
 
-		Log.info("%s successfully logged in", profile.getAlias());
+		Log.info("%s successfully logged in", profile);
 		profile.setValid(true);
 	}
 
@@ -318,7 +319,12 @@ public class ProfileManager {
 		profiles.remove(profile);
 	}
 
-	public void checkProfiles() {
+	/**
+	 * Стратегия реконнекта - просто вызываем {@link #checkProfile(Profile)} для каждого
+	 * хранящегося профиля.
+	 */
+	@Override
+	public void reconnect() {
 		profiles.forEach(this::checkProfile);
 	}
 }

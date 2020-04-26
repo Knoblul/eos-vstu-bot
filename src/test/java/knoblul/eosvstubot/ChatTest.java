@@ -41,7 +41,7 @@ public class ChatTest {
 			String chatLink = "http://eos.vstu.ru/mod/chat/gui_ajax/index.php?id=1946";
 			ChatSession session = context.createChatSession(chatLink);
 
-			session.addChatActionListener(action -> {
+			session.addChatActionListener((connection, action) -> {
 				if (action.getUsers() != null) {
 					action.getUsers().forEach(user ->
 							Log.info("New user: name='%s', url='%s', picture='%s', id='%s'",
@@ -49,7 +49,7 @@ public class ChatTest {
 					);
 				}
 
-				action.getMessages().forEach(message ->
+				action.getNewMessages().forEach(message ->
 					Log.info("New message: user='%s', userId='%s', text='%s'",
 							message.getUser(), message.getUserId(), message.getText())
 				);
@@ -57,14 +57,14 @@ public class ChatTest {
 
 			session.addChatConnectionListener(new ChatConnectionListener() {
 				@Override
-				public void completed(ChatConnection connection) {
+				public void connected(ChatConnection connection) {
 					// отправляем приветсвенное сообщение в чат при успешном подключении
 					connection.sendMessage("test");
 				}
 
 				@Override
-				public void failed(ChatConnection connection, Throwable error) {
-					Log.error(error, "Hello listener! Connection failed!");
+				public void error(ChatConnection connection, Throwable error) {
+					Log.error(error, "Hello listener! Connection error!");
 				}
 			});
 
@@ -89,7 +89,7 @@ public class ChatTest {
 			consoleReadThread.start();
 
 			context.occupyMainThread();
-			context.destroyChatSession(session);
+			session.destroy();
 		} finally {
 			context.destroy();
 		}

@@ -21,7 +21,7 @@ import knoblul.eosvstubot.api.chat.ChatConnection;
 import knoblul.eosvstubot.api.chat.ChatSession;
 import knoblul.eosvstubot.api.chat.action.ChatMessage;
 import knoblul.eosvstubot.api.chat.listening.ChatConnectionListener;
-import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
+import knoblul.eosvstubot.api.schedule.ScheduledConnectionsHandler;
 import knoblul.eosvstubot.api.schedule.Lesson;
 import knoblul.eosvstubot.gui.chat.controls.ChatControlsComponent;
 import org.apache.logging.log4j.Level;
@@ -39,9 +39,10 @@ import java.util.Set;
 
 
 /**
+ * Основной компонент чата.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 16:02
- *
  * @author Knoblul
  */
 public class ChatComponent extends JComponent {
@@ -66,6 +67,7 @@ public class ChatComponent extends JComponent {
 		receivedMessages.clear();
 
 		if (session == null) {
+			// при обнулении сессии закрываем чат и лог
 			CHAT_LOGGER.log(Level.INFO, "**** КОНЕЦ ЧАТА ****");
 			if (activeUsers != null) {
 				activeUsers.onUsersChanged(Lists.newArrayList());
@@ -79,13 +81,16 @@ public class ChatComponent extends JComponent {
 			return;
 		}
 
+		// при создании новой чат-сессии открываем лог
 		Lesson lesson = scheduledConnectionsHandler.getContext().getLessonsManager().getCurrentLesson();
 		String title = lesson != null ? lesson.getName() + " (" + lesson.getTeacher() + ")" : "???";
 		CHAT_LOGGER.log(Level.INFO, "**** НАЧАЛО ЧАТА, ПРЕДМЕТ: " + title + " ****");
 		session.addChatConnectionListener(new ChatConnectionListener() {
 			@Override
-			public void completed(ChatConnection connection) {
+			public void connected(ChatConnection connection) {
 				SwingUtilities.invokeLater(() -> {
+					// при создании новго успешного подключения
+					// к чату, открываем чат
 					setEnabled(true);
 					chatControls.fireUsersUpdated();
 					if (chatControls != null) {
@@ -96,7 +101,7 @@ public class ChatComponent extends JComponent {
 			}
 
 			@Override
-			public void failed(ChatConnection connection, Throwable error) {
+			public void error(ChatConnection connection, Throwable error) {
 //				DialogUtils.showError(String.format("%s: не могу подключится к чату",
 //						connection.getProfile().getAlias()), error, false);
 				SwingUtilities.invokeLater(() -> {
@@ -119,11 +124,11 @@ public class ChatComponent extends JComponent {
 			}
 		});
 
-		session.addChatActionListener((action) -> {
+		session.addChatActionListener((connection, action) -> {
 			if (action.getUsers() != null) {
 				activeUsers.onUsersChanged(action.getUsers());
 			}
-			action.getMessages().forEach(this::insertMessage);
+			action.getNewMessages().forEach(this::insertMessage);
 		});
 	}
 

@@ -26,12 +26,15 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
+ * Представление чат-события, которое хранит
+ * всю информацию об обновлении, пришедшем от сервера.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 17:04
  * @author Knoblul
  */
 public class ChatAction {
-	private List<ChatMessage> messages = Lists.newArrayList();
+	private List<ChatMessage> newMessages = Lists.newArrayList();
 	private List<ChatUserInformation> users;
 
 	public ChatAction(@NotNull JsonObject jsonObject) {
@@ -43,7 +46,7 @@ public class ChatAction {
 			JsonObject messagesJson = jsonObject.get("msgs").getAsJsonObject();
 			for (String elementName: messagesJson.keySet()) {
 				ChatMessage message = new ChatMessage(messagesJson.get(elementName).getAsJsonObject());
-				messages.add(message);
+				newMessages.add(message);
 			}
 		}
 
@@ -56,11 +59,18 @@ public class ChatAction {
 		}
 	}
 
+	/**
+	 * @return список новых сообщений, которые пришли от сервера.
+	 */
 	@NotNull
-	public List<ChatMessage> getMessages() {
-		return messages;
+	public List<ChatMessage> getNewMessages() {
+		return newMessages;
 	}
 
+	/**
+	 * @return новый список ВСЕХ пользователей, либо <code>null</code>,
+	 * если текущий список пользователей не был обновлен.
+	 */
 	@Nullable
 	public List<ChatUserInformation> getUsers() {
 		return users;

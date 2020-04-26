@@ -28,6 +28,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
+ * Вспомогательный класс - конфигурация чат-подключения.
+ * Основная задача - хранит все данные, необходимые для
+ * отправки чат-подключением нужных запростов.
+ * Так же хранит имя чата.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 24.04.2020 18:34
  * @author Knoblul
@@ -36,10 +41,18 @@ public class ChatConnectionConfiguration {
 	private static final Pattern chatModuleSettingsPattern = Pattern.compile("(?s)M\\.mod_chat_ajax\\.init\\(Y,(.+?)\\);");
 	private static final Pattern apiConfigPattern = Pattern.compile("(?s)M.cfg\\s*=\\s*(.+?);");
 
+	/**
+	 * Ссылка на ajax-модуль чата, к которой далее обращаться
+	 */
 	private String chatModuleLink;
+
+	/**
+	 * Имя чат-комнаты
+	 */
 	private String title; // chatroom_name
-	private String sessionId; // sid, chat_sid
-	private String theme;
+
+	private String sessionId; // sid => chat_sid
+	private String theme; // обязательный параметр
 	private long pingPeriod;
 
 	ChatConnectionConfiguration() {
@@ -49,20 +62,25 @@ public class ChatConnectionConfiguration {
 	void parse(@NotNull Document chatPage, @NotNull String chatPageLink) throws IOException {
 		String scriptsContent = chatPage.select("script").html();
 
+		// парсим json настроек чат-модуля
 		Matcher m = chatModuleSettingsPattern.matcher(scriptsContent);
 		if (!m.find()) {
-			throw new IOException("Invalid response page!");
+			throw new IOException("Invalid response");
 		}
 
+		// из настроек moodle чат-модуля достаем имя чата,
+		// частоту пингования, айди чат-сессии и тему чата
+		// (которая почему-то является обязательным параметром)
 		JsonObject json = BotContext.GSON.fromJson(StringEscapeUtils.unescapeJava(m.group(1)), JsonObject.class);
 		title = json.get("chatroom_name").getAsString();
 		pingPeriod = json.get("timer").getAsInt();
 		sessionId = json.get("sid").getAsString();
 		theme = json.get("theme").getAsString();
 
+		// парсим json настроек moodle api
 		m = apiConfigPattern.matcher(scriptsContent);
 		if (!m.find()) {
-			throw new IOException("Invalid response page!");
+			throw new IOException("Invalid response");
 		}
 		json = BotContext.GSON.fromJson(StringEscapeUtils.unescapeJava(m.group(1)), JsonObject.class);
 		String sessionKey = json.get("sesskey").getAsString();

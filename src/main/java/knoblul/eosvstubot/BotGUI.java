@@ -40,7 +40,7 @@ public class BotGUI {
 			context.loadManagers();
 
 			// создаем и открываем гуи компоненты
-			BotMainWindow window = new BotMainWindow(context);
+			BotMainWindow window = context.registerHandler(BotMainWindow.class);
 			window.setVisible(true);
 
 			// кормим поток контексту

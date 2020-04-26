@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.api.handlers;
+package knoblul.eosvstubot.api.schedule;
 
 import com.google.common.collect.Lists;
 import com.google.gson.JsonArray;
@@ -23,10 +23,9 @@ import knoblul.eosvstubot.api.BotConstants;
 import knoblul.eosvstubot.api.BotContext;
 import knoblul.eosvstubot.api.chat.ChatConnection;
 import knoblul.eosvstubot.api.chat.ChatSession;
+import knoblul.eosvstubot.api.BotHandler;
 import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.api.profile.ProfileManager;
-import knoblul.eosvstubot.api.schedule.Lesson;
-import knoblul.eosvstubot.api.schedule.LessonsManager;
 import knoblul.eosvstubot.utils.Log;
 import org.apache.commons.lang3.RandomUtils;
 import org.jetbrains.annotations.NotNull;
@@ -42,9 +41,16 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
+ * Написанный мной на коленке менеджер подключений по расписанию.
+ * Основное назначение - подключает профили по
+ * расписанию и отправляет от их имени "привественные" сообщения.
+ * Состояние этого менеджера сериализуется, это нужно за тем,
+ * чтобы избежать такие моменты как:
+ * "выключил программу/выключили интернет когда профили были подключены к чату,
+ * потом включил/включили и они опять написали свои фразы"
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 12:15
- *
  * @author Knoblul
  */
 public class ScheduledConnectionsHandler implements BotHandler {
@@ -126,7 +132,7 @@ public class ScheduledConnectionsHandler implements BotHandler {
 	private void setLesson(Lesson lesson) {
 		if (lesson == null) {
 			if (currentChatSession != null) {
-				context.destroyChatSession(currentChatSession);
+				currentChatSession.destroy();
 			}
 
 			if (!scheduledConnections.isEmpty()) {
@@ -154,7 +160,7 @@ public class ScheduledConnectionsHandler implements BotHandler {
 			}
 
 			if (currentChatSession != null) {
-				context.destroyChatSession(currentChatSession);
+				currentChatSession.destroy();
 			}
 			currentChatSession = context.createChatSession(chatLink);
 			currentChatSession.addChatConnectionCompletedListener(connection -> {
@@ -214,6 +220,11 @@ public class ScheduledConnectionsHandler implements BotHandler {
 		return scheduledConnections;
 	}
 
+	/**
+	 * Экземпляр подключения по расписанию.
+	 * Хранит экземпляр самого чат-подключения,
+	 * профиль и сериализуемые переменные.
+	 */
 	public static class ScheduledConnection {
 		private transient ScheduledConnectionsHandler handler;
 		private transient ChatConnection connection;
@@ -260,17 +271,15 @@ public class ScheduledConnectionsHandler implements BotHandler {
 		private void destroy() {
 			message("Removed scheduled connection for %s", username);
 
+			handler = null;
 			profile = null;
 			username = "";
 			chatLink = "";
 			scheduledJoinTime = 0;
 			scheduledJoinMessage = "";
 			if (connection != null) {
-				if (handler.currentChatSession != null) {
-					handler.currentChatSession.destroyConnection(connection);
-				} else {
-					Log.warn("Could not terminate connection %s", connection);
-				}
+				connection.destroy();
+				connection = null;
 			}
 		}
 

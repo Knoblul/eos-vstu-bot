@@ -20,7 +20,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import knoblul.eosvstubot.api.BotConstants;
-import knoblul.eosvstubot.api.BotContext;
 import knoblul.eosvstubot.api.chat.action.ChatAction;
 import knoblul.eosvstubot.api.chat.action.ChatMessage;
 import knoblul.eosvstubot.api.chat.action.ChatUserInformation;
@@ -40,29 +39,29 @@ import java.util.concurrent.TimeUnit;
  */
 public class RuntimeTests {
 	public static void main(String[] args) throws IOException {
-//		Gson GSON = new GsonBuilder().setPrettyPrinting().setLenient().create();
-//		try (BufferedReader reader = Files.newBufferedReader(Paths.get("moz-captures/update_chat_json_response.json"))) {
-//			JsonObject jsonObject = GSON.fromJson(reader, JsonObject.class);
-//			ChatAction action = new ChatAction(jsonObject);
-//
-//			Log.info("Messages: ");
-//			for (ChatMessage message: action.getMessages()) {
-//				Log.info("text='%s'", message.getText());
-//				Log.info("user='%s'", message.getUser());
-//				Log.info("userId='%s'", message.getUserId());
-//				Log.info("systemMessage='%s'", message.isSystemMessage());
-//			}
-//
-//			if (action.getUsers() != null) {
-//				Log.info("Users: ");
-//				for (ChatUserInformation user : action.getUsers()) {
-//					Log.info("name='%s'", user.getName());
-//					Log.info("url='%s'", user.getUrl());
-//					Log.info("picture='%s'", user.getPicture());
-//					Log.info("id='%s'", user.getId());
-//				}
-//			}
-//		}
+		Gson GSON = new GsonBuilder().setPrettyPrinting().setLenient().create();
+		try (BufferedReader reader = Files.newBufferedReader(Paths.get("moz-captures/update_chat_json_response.json"))) {
+			JsonObject jsonObject = GSON.fromJson(reader, JsonObject.class);
+			ChatAction action = new ChatAction(jsonObject);
+
+			Log.info("Messages: ");
+			for (ChatMessage message: action.getNewMessages()) {
+				Log.info("text='%s'", message.getText());
+				Log.info("user='%s'", message.getUser());
+				Log.info("userId='%s'", message.getUserId());
+				Log.info("systemMessage='%s'", message.isSystemMessage());
+			}
+
+			if (action.getUsers() != null) {
+				Log.info("Users: ");
+				for (ChatUserInformation user : action.getUsers()) {
+					Log.info("name='%s'", user.getName());
+					Log.info("url='%s'", user.getUrl());
+					Log.info("picture='%s'", user.getPicture());
+					Log.info("id='%s'", user.getId());
+				}
+			}
+		}
 
 		while (true) {
 			Stopwatch sw = Stopwatch.createStarted();

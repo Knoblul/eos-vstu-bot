@@ -21,6 +21,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Arrays;
 
 /**
+ * Представление пользователя, используемое
+ * для подключения к сайту или чату.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 21.04.2020 13:40
  * @author Knoblul
@@ -193,7 +196,11 @@ public class Profile {
 		Arrays.fill(cookies, "");
 	}
 
-	public String getAlias() {
+	@Override
+	public String toString() {
+		if (profileName == null || profileId == null) {
+			return username + " (N/A)";
+		}
 		return username + " (" + profileName + "#" + profileId + ")";
 	}
 }

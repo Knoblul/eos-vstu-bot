@@ -19,6 +19,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.*;
 import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.BotHandler;
 import knoblul.eosvstubot.utils.Log;
 import org.jetbrains.annotations.NotNull;
 
@@ -39,7 +40,7 @@ import java.util.Map;
  * <br>Created: 22.04.2020 12:28
  * @author Knoblul
  */
-public class LessonsManager {
+public class LessonsManager implements BotHandler {
 	/**
 	 * Контекст бота
 	 */

@@ -17,13 +17,15 @@ package knoblul.eosvstubot.gui;
 
 import knoblul.eosvstubot.api.BotConstants;
 import knoblul.eosvstubot.api.BotContext;
-import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
+import knoblul.eosvstubot.api.BotHandler;
+import knoblul.eosvstubot.api.schedule.ScheduledConnectionsHandler;
 import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.gui.chat.ChatComponent;
 import knoblul.eosvstubot.gui.profile.ProfileTable;
 import knoblul.eosvstubot.gui.schedule.ScheduleManagerComponent;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
 import knoblul.eosvstubot.utils.swing.TextPaneAppender;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -37,7 +39,7 @@ import java.awt.event.WindowEvent;
  * <br>Created: 21.04.2020 20:53
  * @author Knoblul
  */
-public class BotMainWindow extends JFrame {
+public class BotMainWindow extends JFrame implements BotHandler {
 	public static BotMainWindow instance;
 	private final BotContext context;
 	private final ScheduledConnectionsHandler scheduledConnectionsHandler;
@@ -46,7 +48,8 @@ public class BotMainWindow extends JFrame {
 	private ScheduleManagerComponent scheduleManagerComponent;
 	private JComponent consoleComponent;
 
-	public BotMainWindow(BotContext context) {
+	@SuppressWarnings("unused")
+	public BotMainWindow(@NotNull BotContext context) {
 		instance = this;
 		this.context = context;
 		this.scheduledConnectionsHandler = context.registerHandler(ScheduledConnectionsHandler.class);
@@ -111,6 +114,7 @@ public class BotMainWindow extends JFrame {
 		});
 	}
 
+	@Override
 	public void update() {
 		scheduleManagerComponent.update();
 	}

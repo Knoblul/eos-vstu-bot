@@ -15,14 +15,24 @@
  */
 package knoblul.eosvstubot.api.chat.listening;
 
+import knoblul.eosvstubot.api.chat.ChatConnection;
 import knoblul.eosvstubot.api.chat.action.ChatAction;
 
 /**
+ * Листенер чат-событий, пришедших от чат-подключения.
+ * Чат подключение получает чат-события, которые приходят от сервера,
+ * обрабатывает те, что важны для жизненного цикла, а другие,
+ * такие как сообщения, информация о чаттерах - отправляет на листенеры.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 20:24
- *
  * @author Knoblul
  */
 public interface ChatActionListener {
-	void action(ChatAction action);
+	/**
+	 * Вызывается при получении чат-подключением новго события от сервера.
+	 * @param connection чат-подключение, от которого произошел вызов метода.
+	 * @param action чат-событие
+	 */
+	void action(ChatConnection connection, ChatAction action);
 }

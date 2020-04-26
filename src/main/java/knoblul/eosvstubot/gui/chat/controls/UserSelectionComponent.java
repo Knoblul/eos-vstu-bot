@@ -16,7 +16,7 @@
 package knoblul.eosvstubot.gui.chat.controls;
 
 import knoblul.eosvstubot.api.chat.ChatConnection;
-import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
+import knoblul.eosvstubot.api.schedule.ScheduledConnectionsHandler;
 
 import javax.accessibility.Accessible;
 import javax.swing.*;
@@ -26,9 +26,11 @@ import javax.swing.plaf.basic.BasicComboPopup;
 import java.awt.*;
 
 /**
+ * Компонент выбора профиля, от которого
+ * будет оптравлено сообщение.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 20:15
- *
  * @author Knoblul
  */
 public class UserSelectionComponent extends JComboBox<ScheduledConnectionsHandler.ScheduledConnection> {
@@ -47,13 +49,17 @@ public class UserSelectionComponent extends JComboBox<ScheduledConnectionsHandle
 					ChatConnection connection = ((ScheduledConnectionsHandler.ScheduledConnection) value)
 							.getConnection();
 					if (connection != null) {
-						label.setText(connection.getProfile().getAlias());
+						label.setText(connection.getProfile().toString());
 					}
 				}
 				return label;
 			}
 		});
 		setPreferredSize(new Dimension(100, 30));
+
+		// пришлось сделать костыль (когда-нибудь я забуду о Java Swing),
+		// чтобы сделать размер попапа комбобокса независимым
+		// от размера самого комбобокса
 		addPopupMenuListener(new PopupMenuListener() {
 			@Override
 			public void popupMenuWillBecomeVisible(PopupMenuEvent e) {

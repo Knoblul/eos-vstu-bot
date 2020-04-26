@@ -18,17 +18,41 @@ package knoblul.eosvstubot.api.chat.action;
 import java.util.Objects;
 
 /**
+ * Содержит данные об одном из пользователей,
+ * находящемся сейчас в чате.
+ * Парсится в {@link ChatAction} при обработке ответа от сервера.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 17:18
- *
  * @author Knoblul
  */
 @SuppressWarnings("unused") // json serialization
 public class ChatUserInformation {
+	/**
+	 * Имя пользователя (профиля)
+	 */
 	private String name;
+
+	/**
+	 * URL профиля
+	 */
 	private String url;
+
+	/**
+	 * Элемент картинки профиля
+	 */
 	private String picture;
+
+	/**
+	 * ID профиля
+	 */
 	private String id;
+
+	/**
+	 * Этот флаг принимает значение <code>true</code> тогда,
+	 * когда {@link #id} является id профиля чат-подключения,
+	 * которое приняло эту информацию от сервера.
+	 */
 	private transient boolean isBot;
 
 	ChatUserInformation() {

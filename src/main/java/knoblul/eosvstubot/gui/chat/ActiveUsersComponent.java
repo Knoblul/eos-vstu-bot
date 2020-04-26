@@ -23,9 +23,10 @@ import java.awt.*;
 import java.util.List;
 
 /**
+ * Компонент, содержащий список активны пользователей в чате
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 19:30
- *
  * @author Knoblul
  */
 class ActiveUsersComponent extends JComponent {

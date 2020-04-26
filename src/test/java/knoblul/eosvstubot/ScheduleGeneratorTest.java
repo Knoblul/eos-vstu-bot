@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 23.04.2020 19:50
- *
  * @author Knoblul
  */
 public class ScheduleGeneratorTest {

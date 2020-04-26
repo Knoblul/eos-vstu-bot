@@ -15,15 +15,17 @@
  */
 package knoblul.eosvstubot.gui.chat.controls;
 
-import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
+import knoblul.eosvstubot.api.schedule.ScheduledConnectionsHandler;
 
 import javax.swing.*;
 import java.util.List;
 
 /**
+ * Модель компонента выбора профиля, от которого
+ * будет отправлено сообщение
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 18:14
- *
  * @author Knoblul
  */
 class UserSelectionModel extends AbstractListModel<ScheduledConnectionsHandler.ScheduledConnection>

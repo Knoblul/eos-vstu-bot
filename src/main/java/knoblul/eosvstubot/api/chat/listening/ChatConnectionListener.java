@@ -18,12 +18,26 @@ package knoblul.eosvstubot.api.chat.listening;
 import knoblul.eosvstubot.api.chat.ChatConnection;
 
 /**
+ * Листенер событий, связанных с чат-подключениями.
+ * Отлавливает момент успешного входа в чат и
+ * все ошибки, возникшие внутри чат-подключения.
+ *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 20:24
  * @author Knoblul
  */
 public interface ChatConnectionListener {
-//	void created(ChatConnection);
-	void completed(ChatConnection connection);
-	void failed(ChatConnection connection, Throwable error);
+	/**
+	 * Вызывается при успешном входе в чат.
+	 * @param connection чат-подключение, от которого произошел вызов метода.
+	 */
+	void connected(ChatConnection connection);
+
+	/**
+	 * Вызывается при исключении, возникшем во время попытки входа в чат,
+	 * либо на момент обработки чат-подключения.
+	 * @param connection чат-подключение, от которого произошел вызов метода.
+	 * @param error исключение, которое возникло внутри чат-подключения.
+	 */
+	void error(ChatConnection connection, Throwable error);
 }

@@ -29,6 +29,7 @@ import knoblul.eosvstubot.utils.Log;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jsoup.nodes.Document;
 
 import java.io.IOException;
@@ -50,20 +51,53 @@ public class ChatConnection {
 	 */
 	private static final int CONNECTION_RESET_TIME = 15000;
 
+	/**
+	 * Чат-сессия, к которой принадлежит данное чат-подключение.
+	 */
 	private final ChatSession chatSession;
+
+	/**
+	 * Профиль, от "имени" которого "представляется" данное чат-подключение.
+	 */
 	private final Profile profile;
+
 	private ChatConnectionConfiguration configuration;
 
+	/**
+	 * Этот флаг принимает значение <code>true</code> тогда,
+	 * когда чат-подключение было удалено, либо произошло необратимое исключение.
+	 */
 	private volatile boolean invalid;
+
+	/**
+	 * Этот флаг принимает значение <code>true</code> тогда, когда
+	 * вход в чат прошел успешен и конфигурация чата получена.
+	 * Принимает значение <code>false</code> тогда, когда
+	 * произошло необратимое/обратимое исключение.
+	 */
 	private volatile boolean configurationCompleted;
+
+	/**
+	 * Количество попыток переподключится к чату.
+	 */
 	private AtomicInteger reconnectAttempts = new AtomicInteger();
 
+	/**
+	 * Последнее время отправки ping-запроса к ajax-скрипту.
+	 */
 	private long lastPingTime;
+
+	/**
+	 * Последнее время принятия ответа на ping-запрос к ajax-скрипту.
+	 */
 	private long lastPongTime;
 
 	private String chatLastTime = "";
 	private String chatLastRow = "0";
 
+	/**
+	 * Хранит результаты выполнения асинхронных http-запросов
+	 */
 	private Set<Future<HttpResponse>> requestFutures = Sets.newHashSet();
 
 	ChatConnection(ChatSession chatSession, Profile profile) {
@@ -84,7 +118,7 @@ public class ChatConnection {
 
 		if (!configurationCompleted && reconnectAttempts.get() < chatSession.getMaximumReconnectAttempts()) {
 			Log.error("%s connection failed: %s. Reconnecting... (attempt %d/%d)",
-					profile.getAlias(), t.getCause() != null ? t.getCause().toString() : t.toString(),
+					profile, t.getCause() != null ? t.getCause().toString() : t.toString(),
 					reconnectAttempts.get()+1, chatSession.getMaximumReconnectAttempts());
 			chatSession.getContext().invokeMainThreadCommand(this::reconnect);
 			return;
@@ -92,10 +126,17 @@ public class ChatConnection {
 
 		invalid = true;
 		Log.error(t, "Connection error");
-		chatSession.onConnectionFailed(this, t);
+		chatSession.onConnectionError(this, t);
 	}
 
-	private boolean processUpdateResponse(JsonElement json) {
+	/**
+	 * Обрабатывает ответ от ajax-скрипта чата, независимо от того
+	 * какой запрос на скрипт был отправлен.
+	 * @param json ответ от скрипта в виде json-документа
+	 * @return <code>true</code> если не произошло никаких
+	 * ошибок при обработке запроса
+	 */
+	private boolean processAjaxResponse(JsonElement json) {
 		lastPongTime = System.currentTimeMillis();
 
 		if (json == null || !json.isJsonObject()) {
@@ -105,18 +146,22 @@ public class ChatConnection {
 
 		JsonObject jsonObject = json.getAsJsonObject();
 		if (jsonObject.has("error")) {
-			onErrorCaused(new IOException("Response error: (" + jsonObject.get("errorcode").getAsJsonObject() + ") "
+			onErrorCaused(new IOException("Response error: (" + jsonObject.get("errorcode").getAsString() + ") "
 					+ jsonObject.get("error").getAsString()));
 			return false;
 		}
 
+		// два не совсем понятных мне значения, которые нужно отправлять
+		// в запросе после получения от сервера ответа на init или update
 		chatLastTime = jsonObject.has("lasttime") ? jsonObject.get("lasttime").getAsString() : "";
 		chatLastRow = jsonObject.has("lastrow") ? jsonObject.get("lastrow").getAsString() : "0";
 
+		// если ответ содержит users или msgs, то парсим их
+		// и отправляем на листенеры в виде ChatAction
 		if (jsonObject.has("users") || jsonObject.has("msgs")) {
 			ChatAction action = new ChatAction(jsonObject);
 
-			// отмечаем ботов
+			// "помечаем" наших ботов
 			if (action.getUsers() != null) {
 				for (ChatUserInformation user: action.getUsers()) {
 					if (user.getId().equals(profile.getProfileId())) {
@@ -125,15 +170,34 @@ public class ChatConnection {
 				}
 			}
 
-			chatSession.onChatAction(action);
+			chatSession.onChatAction(this, action);
 		}
 
 		return true;
 	}
 
+	/**
+	 * Завершает процесс подключения, отмечая
+	 * данное чат-подключение настроенным и готовым.
+	 */
+	private void completeConnection() {
+		configurationCompleted = true;
+		chatSession.onConnectionCompleted(this);
+		Log.info("%s connected to chat '%s'", profile, configuration.getTitle());
+		reconnectAttempts.set(0);
+	}
+
+	/**
+	 * Обрабатывает ответ от сервера на запрос о подключении к чату.
+	 * Парсит ответ, и отправляет еще один запрос, но уже на ajax-скрипт чата,
+	 * в параметрах этого запроса передается action=init.
+	 * При положительном овтете от сервера вызывается метод {@link #completeConnection()}
+	 * @param page html-страница с ответом, содержащая критические данные о
+	 *             конфигурации чата.
+	 */
 	private void doConfiguration(Document page) {
 		try {
-			// парсим конфигурацию из ответа на запрос главной чата
+			// парсим конфигурацию из ответа на запрос к index.php чата
 			configuration.parse(page, chatSession.getChatIndexLink());
 		} catch (IOException e) {
 			onErrorCaused(new IOException("Failed to configure chat connection", e));
@@ -141,7 +205,6 @@ public class ChatConnection {
 		}
 
 		// отправляем пост-запрос на ajax-скрипт чата с параметром action=init
-		// когда он придет, вызвается метод #doInit
 		BotContext context = chatSession.getContext();
 		context.invokeMainThreadCommand(() -> {
 			Map<String, String> params = Maps.newHashMap();
@@ -153,20 +216,17 @@ public class ChatConnection {
 			// выбираем нужный профиль перед отпракой запроса
 			context.getProfileManager().selectProfile(profile);
 			requestFutures.add(context.executeRequestAsync(request, JsonElement.class, HttpCallbacks.onEither(json -> {
-				if (processUpdateResponse(json)) {
+				if (processAjaxResponse(json)) {
 					completeConnection();
 				}
 			}, this::onErrorCaused)));
 		});
 	}
 
-	private void completeConnection() {
-		configurationCompleted = true;
-		chatSession.onConnectionCompleted(this);
-		Log.info("%s connected to chat '%s'", profile.getAlias(), configuration.getTitle());
-		reconnectAttempts.set(0);
-	}
-
+	/**
+	 * Начинает процесс подключения к чату, отправляя запрос на index.php чата.
+	 * Ответ от сервера обрабатывается в {@link #doConfiguration(Document)}
+	 */
 	private void connect() {
 		BotContext context = chatSession.getContext();
 
@@ -181,14 +241,24 @@ public class ChatConnection {
 				HttpCallbacks.onEither(this::doConfiguration, this::onErrorCaused)));
 	}
 
+	/**
+	 * Отмечает это чат-подключение ненастроенным и
+	 * пытается переподключится к чату.
+	 */
 	private void reconnect() {
-		cancelRequests();
+		cancelHttpRequests();
 		configurationCompleted = false;
 		reconnectAttempts.getAndIncrement();
 		connect();
 	}
 
+	/**
+	 * Метод для отправки асинхронного пинг-запроса на ajax-скрипт чата.
+	 * Ответ от сервера обрабатывается в {@link #processAjaxResponse(JsonElement)}
+	 */
 	private void ping() {
+		lastPingTime = System.currentTimeMillis();
+
 		BotContext context = chatSession.getContext();
 
 		// отправляем асинхронный запрос на ajax-скрипт чата
@@ -203,14 +273,21 @@ public class ChatConnection {
 		// выбираем нужный профиль перед отпракой запроса
 		context.getProfileManager().selectProfile(profile);
 		requestFutures.add(context.executeRequestAsync(request, JsonElement.class,
-				HttpCallbacks.onEither(this::processUpdateResponse, this::onErrorCaused)));
-
-		lastPingTime = System.currentTimeMillis();
+				HttpCallbacks.onEither(this::processAjaxResponse, this::onErrorCaused)));
 	}
 
+	/**
+	 * Обновляет логику чат-подключения.
+	 * После успешной конфигурации отправляет пинг-запрос на
+	 * ajax-скрипт чата, чтобы получить обновления от сервера.
+	 * Если ответ не был получен более чем {@link #CONNECTION_RESET_TIME},
+	 * то пытается переподключится к чату.
+	 * @return <code>true</code>, если произошло необратимое исключение
+	 * или это чат-подключение следует удалить.
+	 */
 	boolean update() {
 		if (invalid) {
-			close();
+			destroy();
 			return false;
 		}
 
@@ -218,7 +295,7 @@ public class ChatConnection {
 		// каждые N миллисекунд (указано в конфигурации чата)
 		if (configurationCompleted) {
 			if (System.currentTimeMillis() - lastPongTime > CONNECTION_RESET_TIME) {
-				Log.error("%s connection reset. Reconnecting... (attempt %d/%d)", profile.getAlias(),
+				Log.error("%s connection reset. Reconnecting... (attempt %d/%d)", profile,
 						reconnectAttempts.get()+1, chatSession.getMaximumReconnectAttempts());
 				reconnect();
 				return true;
@@ -241,7 +318,11 @@ public class ChatConnection {
 		}
 	}
 
-	public void sendMessage(String message) {
+	/**
+	 * Отправляет сообщение в чат от данного подключения
+	 * @param message сообщение
+	 */
+	public void sendMessage(@Nullable String message) {
 		BotContext context = chatSession.getContext();
 		context.invokeMainThreadCommand(() -> {
 			if (Strings.isNullOrEmpty(message)) {
@@ -267,11 +348,11 @@ public class ChatConnection {
 			requestFutures.add(context.executeRequestAsync(request, String.class,
 					HttpCallbacks.onEither(this::processSendMessageResponse, this::onErrorCaused)));
 
-			Log.info("%s sended message '%s' to chat", profile.getAlias(), message);
+			Log.info("%s sended message '%s' to chat", profile, message);
 		});
 	}
 
-	private void cancelRequests() {
+	private void cancelHttpRequests() {
 		chatSession.getContext().invokeMainThreadCommand(() -> {
 			for (Future<HttpResponse> future: requestFutures) {
 				if (!future.isDone() && !future.isCancelled()) {
@@ -282,13 +363,18 @@ public class ChatConnection {
 		});
 	}
 
-	public void close() {
-		Log.info("%s connection to chat '%s' closed", profile.getAlias(), configuration.getTitle());
+	/**
+	 * Удаляет данное подключение, отменяя все незавершенные
+	 * http-запросы и освобождая ресурсы.
+	 */
+	public void destroy() {
+		Log.info("%s connection to chat '%s' closed", profile, configuration.getTitle());
 
-		// запрещаем отправку сообщений после закрытия подключения
+		// отмечаем подключение недействительным и ненастроенным
 		invalid = true;
 		configurationCompleted = false;
-		cancelRequests();
+		// отменяем все отправленные и ожидающие http-запросы
+		cancelHttpRequests();
 	}
 
 	public Profile getProfile() {

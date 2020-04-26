@@ -17,18 +17,15 @@ package knoblul.eosvstubot.api;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import knoblul.eosvstubot.api.chat.ChatSession;
-import knoblul.eosvstubot.api.handlers.BotHandler;
 import knoblul.eosvstubot.api.network.ConnectionProblemsDetector;
 import knoblul.eosvstubot.api.profile.ProfileManager;
 import knoblul.eosvstubot.api.schedule.LessonsManager;
-import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.utils.Log;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.http.HttpResponse;
@@ -127,8 +124,16 @@ public class BotContext {
 
 	private ConnectionProblemsDetector connectionProblemsDetector;
 
-	private Map<URI, ChatSession> chatSessions = Maps.newHashMap();
+	/**
+	 * Список всех созданных и действительных чат-сессей.
+	 * Удаленые чат-сесси будут автоматически чистится из этого
+	 * списка.
+	 */
+	private List<ChatSession> chatSessions = Lists.newArrayList();
 
+	/**
+	 * Список всех зарегистрированых {@link BotHandler}'s.
+	 */
 	private List<BotHandler> handlers = Lists.newArrayList();
 
 	public BotContext() {
@@ -137,8 +142,8 @@ public class BotContext {
 			throw new IllegalStateException("Context can be created only from the main thread.");
 		}
 
-		profileManager = new ProfileManager(this);
-		lessonsManager = new LessonsManager(this);
+		profileManager = registerHandler(ProfileManager.class);
+		lessonsManager = registerHandler(LessonsManager.class);
 	}
 
 	/**
@@ -258,12 +263,11 @@ public class BotContext {
 			invokeMainThreadCommand(command);
 		}
 
+		// обновляем ханлдеры
 		handlers.forEach(BotHandler::update);
-		chatSessions.values().forEach(ChatSession::update);
 
-		if (BotMainWindow.instance != null) {
-			BotMainWindow.instance.update();
-		}
+		// обновляем чат-сессии, удаляем те, что недействительны
+		chatSessions.removeIf(ChatSession::update);
 	}
 
 	/**
@@ -275,8 +279,18 @@ public class BotContext {
 		mainThread.interrupt();
 	}
 
+	/**
+	 * Создает и регистрирует {@link BotHandler}.
+	 * <p>Класс хандлера должен иметь конструктор с аргрументом {@link BotContext}.</p>
+	 *
+	 * <p>Эта функция должна вызываться только из основного потока.</p>
+	 * @param handlerClass класс хандлера
+	 * @param <T> генерик для возвращения результата в нужном типе
+	 * @throws IllegalArgumentException если handlerClass не имеет конструктора
+	 * с аргументом {@link BotContext}.
+	 * @return новосозданный хандлер
+	 */
 	public <T extends BotHandler> T registerHandler(Class<T> handlerClass) {
-		requireValidContext();
 		requireMainThread();
 
 		Constructor<T> constructor = ConstructorUtils.getAccessibleConstructor(handlerClass, BotContext.class);
@@ -632,32 +646,42 @@ public class BotContext {
 		});
 	}
 
-	public ChatSession createChatSession(String chatLink) {
+	/**
+	 * Создает чат-сессию по ссылке на index.php чата.
+	 * Если такая чат сессия уже существует, возвращает существующую
+	 * @param chatIndexLink ссылка на index.php чата
+	 * @return новосозданная/существующая чат-сессия
+	 */
+	public ChatSession createChatSession(String chatIndexLink) {
 		requireValidContext();
 		requireMainThread();
 
-		return chatSessions.computeIfAbsent(URI.create(chatLink), (k) -> new ChatSession(this, chatLink));
+		String fixedLink = URI.create(chatIndexLink).toString();
+		for (ChatSession chatSession: chatSessions) {
+			if (chatSession.getChatIndexLink().equals(fixedLink)) {
+				return chatSession;
+			}
+		}
+
+		ChatSession chatSession = new ChatSession(this, fixedLink);
+		chatSessions.add(chatSession);
+		return chatSession;
 	}
 
-	public void destroyChatSession(ChatSession session) {
-		requireValidContext();
-		requireMainThread();
-
-		chatSessions.values().remove(session);
-		session.close();
-	}
-
+	/**
+	 * Пытается восстановить подключение, вызывая на каждом
+	 * ханлдере {@link BotHandler#reconnect()}
+ 	 */
 	private void reconnect() {
 		requireValidContext();
 		requireMainThread();
 
 		Log.info("Trying to reconnect all context modules...");
-		profileManager.checkProfiles();
 		handlers.forEach(BotHandler::reconnect);
 	}
 
 	/**
-	 * Уничтожает контекст, закрывая {@link #client}.
+	 * Уничтожает контекст и высвобождает ресурсы.
 	 * Далее, контекстные действия не могут выполнятся.
 	 *
 	 * <p>Эта функция должна вызываться только из основного потока.</p>
@@ -681,8 +705,8 @@ public class BotContext {
 			asyncClient = null;
 		}
 
-		for (ChatSession chatSession : chatSessions.values()) {
-			chatSession.close();
+		for (ChatSession chatSession : chatSessions) {
+			chatSession.destroy();
 		}
 		chatSessions.clear();
 
