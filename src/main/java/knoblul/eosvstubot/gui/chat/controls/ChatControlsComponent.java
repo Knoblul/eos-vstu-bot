@@ -81,8 +81,7 @@ public class ChatControlsComponent extends JComponent {
 				= (ScheduledConnectionsHandler.ScheduledConnection) userSelection.getSelectedItem();
 		if (sc != null && sc.getConnection() != null && !chatMessageField.getText().isEmpty()) {
 			String msg = chatMessageField.getText();
-			scheduledConnectionsHandler.getContext().invokeMainThreadCommand(() ->
-				sc.getConnection().sendMessage(msg));
+			sc.getConnection().sendMessage(msg);
 			chatMessageField.setText("");
 		}
 	}

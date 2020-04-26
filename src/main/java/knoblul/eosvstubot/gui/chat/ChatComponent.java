@@ -24,7 +24,6 @@ import knoblul.eosvstubot.api.chat.listening.ChatConnectionListener;
 import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
 import knoblul.eosvstubot.api.schedule.Lesson;
 import knoblul.eosvstubot.gui.chat.controls.ChatControlsComponent;
-import knoblul.eosvstubot.utils.swing.DialogUtils;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,6 +34,7 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyleContext;
 import java.awt.*;
+import java.util.List;
 import java.util.Set;
 
 
@@ -45,7 +45,7 @@ import java.util.Set;
  * @author Knoblul
  */
 public class ChatComponent extends JComponent {
-	private static final Set<ChatMessage> recieveMessages = Sets.newHashSet();
+	private static final Set<ChatMessage> receivedMessages = Sets.newHashSet();
 	private static final Logger CHAT_LOGGER = LogManager.getLogger("CHAT");
 	private final ScheduledConnectionsHandler scheduledConnectionsHandler;
 
@@ -63,7 +63,7 @@ public class ChatComponent extends JComponent {
 	}
 
 	private void onSessionChanged(ChatSession session) {
-		recieveMessages.clear();
+		receivedMessages.clear();
 
 		if (session == null) {
 			CHAT_LOGGER.log(Level.INFO, "**** КОНЕЦ ЧАТА ****");
@@ -97,14 +97,24 @@ public class ChatComponent extends JComponent {
 
 			@Override
 			public void failed(ChatConnection connection, Throwable error) {
-				DialogUtils.showError(String.format("%s (%s): не могу подключится к чату",
-						connection.getProfile().getUsername(),
-						connection.getProfile().getProfileName()), error);
-
+//				DialogUtils.showError(String.format("%s: не могу подключится к чату",
+//						connection.getProfile().getAlias()), error, false);
 				SwingUtilities.invokeLater(() -> {
 					if (chatControls != null) {
 						chatControls.fireUsersUpdated();
 					}
+
+					boolean stillConnected = false;
+					List<ScheduledConnectionsHandler.ScheduledConnection> connections
+							= scheduledConnectionsHandler.getScheduledConnections();
+					//noinspection ForLoopReplaceableByForEach
+					for (int i = 0; i < connections.size(); i++) {
+						ScheduledConnectionsHandler.ScheduledConnection sc = connections.get(i);
+						if (sc != null && sc.getConnection() != null && !sc.getConnection().isInvalid()) {
+							stillConnected = true;
+						}
+					}
+					setEnabled(stillConnected);
 				});
 			}
 		});
@@ -118,11 +128,11 @@ public class ChatComponent extends JComponent {
 	}
 
 	private void insertMessage(ChatMessage message) {
-		if (recieveMessages.contains(message)) {
+		if (receivedMessages.contains(message)) {
 			return;
 		}
 
-		recieveMessages.add(message);
+		receivedMessages.add(message);
 
 		StyleContext sc = StyleContext.getDefaultStyleContext();
 		Color senderColor = message.isSystemMessage() ? new Color(150, 50, 50)

@@ -204,6 +204,12 @@ public class ScheduledConnectionsHandler implements BotHandler {
 		}
 	}
 
+	@Override
+	public void reconnect() {
+		// грубо обнуляем инстансы подключений, чтобы реконнектнуть всех ботов
+		scheduledConnections.forEach(sc -> sc.connection = null);
+	}
+
 	public List<ScheduledConnection> getScheduledConnections() {
 		return scheduledConnections;
 	}
@@ -243,7 +249,8 @@ public class ScheduledConnectionsHandler implements BotHandler {
 				return true;
 			}
 
-			if (connection == null && System.currentTimeMillis() > scheduledJoinTime && session != null) {
+			if (connection == null && System.currentTimeMillis() > scheduledJoinTime
+					&& session != null && profile.isValid()) {
 				connect();
 			}
 

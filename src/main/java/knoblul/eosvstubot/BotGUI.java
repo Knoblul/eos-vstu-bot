@@ -17,7 +17,6 @@ package knoblul.eosvstubot;
 
 import knoblul.eosvstubot.api.BotConstants;
 import knoblul.eosvstubot.api.BotContext;
-import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
 import knoblul.eosvstubot.gui.BotMainWindow;
 import knoblul.eosvstubot.utils.Log;
 

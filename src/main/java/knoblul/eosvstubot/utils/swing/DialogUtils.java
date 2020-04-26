@@ -47,11 +47,14 @@ public class DialogUtils {
 	 * в любом случае будет происходить в AWT event dispatching thread.
 	 * @param message текст ошибки
 	 * @param t исключение
+	 * @param doLogError писать ли в консоль то, что выводится в сообщении
 	 */
-	public static void showError(String message, Throwable t) {
+	public static void showError(String message, Throwable t, boolean doLogError) {
 		// какой то старый снипплет свинг диалога с ошибкой,
 		// украл из старго проекта
-		Log.error(t, message);
+		if (doLogError) {
+			Log.error(t, message);
+		}
 
 		JDialog dialog = new JDialog(BotMainWindow.instance, "Ошибка", true);
 		dialog.setDefaultCloseOperation(JDialog.HIDE_ON_CLOSE);

@@ -13,21 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot.api.handlers;
+package knoblul.eosvstubot.api.profile;
+
+import knoblul.eosvstubot.api.profile.Profile;
+import org.jetbrains.annotations.NotNull;
+
+import java.io.IOException;
 
 /**
  * <br><br>Module: eos-vstu-bot
- * <br>Created: 25.04.2020 12:20
+ * <br>Created: 26.04.2020 11:29
  * @author Knoblul
  */
-public interface BotHandler {
-	void update();
-
-	/**
-	 * Выполняется при проблемах с подключением
-	 * к {@link knoblul.eosvstubot.api.BotConstants#SITE_DOMAIN}.
-	 * Либо, когда проблемы пропали после нескольких неудачных попыток
-	 * пингануть хост.
-	 */
-	void reconnect();
+public class SessionExpiredException extends IOException {
+	public SessionExpiredException(@NotNull Profile profile) {
+		super("Session for " + profile.getAlias() + " expired");
+	}
 }

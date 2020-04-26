@@ -15,7 +15,6 @@
  */
 package knoblul.eosvstubot.api.chat;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import knoblul.eosvstubot.api.BotContext;
@@ -23,10 +22,8 @@ import knoblul.eosvstubot.api.chat.action.ChatAction;
 import knoblul.eosvstubot.api.chat.listening.ChatActionListener;
 import knoblul.eosvstubot.api.chat.listening.ChatConnectionListener;
 import knoblul.eosvstubot.api.profile.Profile;
-import knoblul.eosvstubot.gui.chat.ChatComponent;
+import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Constructor;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -45,9 +42,12 @@ public class ChatSession {
 	private Set<ChatActionListener> chatActionListeners = Sets.newHashSet();
 	private Set<ChatConnectionListener> chatConnectionListeners = Sets.newHashSet();
 
-	public ChatSession(BotContext context, String chatIndexLink) {
+	private int maximumReconnectAttempts;
+
+	public ChatSession(@NotNull BotContext context, @NotNull String chatIndexLink) {
 		this.context = context;
 		this.chatIndexLink = chatIndexLink;
+		setMaximumReconnectAttempts(3);
 	}
 
 	public BotContext getContext() {
@@ -58,23 +58,28 @@ public class ChatSession {
 		return chatIndexLink;
 	}
 
-	public void update() {
-		if (context.mainThread != Thread.currentThread()) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+	public int getMaximumReconnectAttempts() {
+		return maximumReconnectAttempts;
+	}
 
+	public void setMaximumReconnectAttempts(int maximumReconnectAttempts) {
+		this.maximumReconnectAttempts = maximumReconnectAttempts;
+	}
+
+	public void update() {
+		context.requireMainThread();
 		connections.values().removeIf(chatConnection -> !chatConnection.update());
 	}
 
-	public void addChatActionListener(ChatActionListener listener) {
+	public void addChatActionListener(@NotNull ChatActionListener listener) {
 		chatActionListeners.add(listener);
 	}
 
-	public void addChatConnectionListener(ChatConnectionListener listener) {
+	public void addChatConnectionListener(@NotNull ChatConnectionListener listener) {
 		chatConnectionListeners.add(listener);
 	}
 
-	public void addChatConnectionCompletedListener(Consumer<ChatConnection> listener) {
+	public void addChatConnectionCompletedListener(@NotNull Consumer<ChatConnection> listener) {
 		chatConnectionListeners.add(new ChatConnectionListener() {
 			@Override
 			public void completed(ChatConnection connection) {
@@ -103,27 +108,19 @@ public class ChatSession {
 				chatConnectionListeners.forEach(listener -> listener.completed(connection)));
 	}
 
-	public ChatConnection createConnection(Profile profile) {
-		if (context.mainThread != Thread.currentThread()) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
-
+	public ChatConnection createConnection(@NotNull Profile profile) {
+		context.requireMainThread();
 		return connections.computeIfAbsent(profile, (k) -> new ChatConnection(this, profile));
 	}
 
-	public void destroyConnection(ChatConnection connection) {
-		if (context.mainThread != Thread.currentThread()) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+	public void destroyConnection(@NotNull ChatConnection connection) {
+		context.requireMainThread();
 		connection.close();
 		connections.values().remove(connection);
 	}
 
 	public void close() {
-		if (context.mainThread != Thread.currentThread()) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
-
+		context.requireMainThread();
 		connections.values().forEach(ChatConnection::close);
 		connections.clear();
 	}

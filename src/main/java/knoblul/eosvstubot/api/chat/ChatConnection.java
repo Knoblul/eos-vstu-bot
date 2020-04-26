@@ -17,6 +17,7 @@ package knoblul.eosvstubot.api.chat;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import knoblul.eosvstubot.api.BotContext;
@@ -25,12 +26,17 @@ import knoblul.eosvstubot.api.chat.action.ChatUserInformation;
 import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.utils.HttpCallbacks;
 import knoblul.eosvstubot.utils.Log;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.nodes.Document;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <br><br>Module: eos-vstu-bot
@@ -38,16 +44,27 @@ import java.util.Map;
  * @author Knoblul
  */
 public class ChatConnection {
+	/**
+	 * Среднее значение, после которого подключение
+	 * считается "разрованным".
+	 */
+	private static final int CONNECTION_RESET_TIME = 15000;
+
 	private final ChatSession chatSession;
 	private final Profile profile;
 	private ChatConnectionConfiguration configuration;
 
 	private volatile boolean invalid;
 	private volatile boolean configurationCompleted;
+	private AtomicInteger reconnectAttempts = new AtomicInteger();
 
 	private long lastPingTime;
+	private long lastPongTime;
+
 	private String chatLastTime = "";
 	private String chatLastRow = "0";
+
+	private Set<Future<HttpResponse>> requestFutures = Sets.newHashSet();
 
 	ChatConnection(ChatSession chatSession, Profile profile) {
 		this.chatSession = chatSession;
@@ -61,13 +78,26 @@ public class ChatConnection {
 	}
 
 	private void onErrorCaused(Throwable t) {
-		invalid = true;
-		Log.error(t);
+		if (t instanceof CancellationException) {
+			return;
+		}
 
+		if (!configurationCompleted && reconnectAttempts.get() < chatSession.getMaximumReconnectAttempts()) {
+			Log.error("%s connection failed: %s. Reconnecting... (attempt %d/%d)",
+					profile.getAlias(), t.getCause() != null ? t.getCause().toString() : t.toString(),
+					reconnectAttempts.get()+1, chatSession.getMaximumReconnectAttempts());
+			chatSession.getContext().invokeMainThreadCommand(this::reconnect);
+			return;
+		}
+
+		invalid = true;
+		Log.error(t, "Connection error");
 		chatSession.onConnectionFailed(this, t);
 	}
 
 	private boolean processUpdateResponse(JsonElement json) {
+		lastPongTime = System.currentTimeMillis();
+
 		if (json == null || !json.isJsonObject()) {
 			onErrorCaused(new IOException("Wrong response"));
 			return false;
@@ -75,7 +105,8 @@ public class ChatConnection {
 
 		JsonObject jsonObject = json.getAsJsonObject();
 		if (jsonObject.has("error")) {
-			onErrorCaused(new IOException("Response error: " + jsonObject.get("error").getAsString()));
+			onErrorCaused(new IOException("Response error: (" + jsonObject.get("errorcode").getAsJsonObject() + ") "
+					+ jsonObject.get("error").getAsString()));
 			return false;
 		}
 
@@ -121,19 +152,19 @@ public class ChatConnection {
 			HttpUriRequest request = context.buildPostRequest(configuration.getChatModuleLink(), params);
 			// выбираем нужный профиль перед отпракой запроса
 			context.getProfileManager().selectProfile(profile);
-			context.executeRequestAsync(request, JsonElement.class, HttpCallbacks.onEither((json) -> {
+			requestFutures.add(context.executeRequestAsync(request, JsonElement.class, HttpCallbacks.onEither(json -> {
 				if (processUpdateResponse(json)) {
-					completeConfiguration();
+					completeConnection();
 				}
-			}, this::onErrorCaused));
+			}, this::onErrorCaused)));
 		});
 	}
 
-	private void completeConfiguration() {
+	private void completeConnection() {
 		configurationCompleted = true;
 		chatSession.onConnectionCompleted(this);
-		Log.info("%s (%s) connected to chat '%s'", profile.getUsername(), profile.getProfileName(),
-				configuration.getTitle());
+		Log.info("%s connected to chat '%s'", profile.getAlias(), configuration.getTitle());
+		reconnectAttempts.set(0);
 	}
 
 	private void connect() {
@@ -146,8 +177,15 @@ public class ChatConnection {
 
 		// выбираем нужный профиль перед отпракой запроса
 		context.getProfileManager().selectProfile(profile);
-		context.executeRequestAsync(request, Document.class,
-				HttpCallbacks.onEither(this::doConfiguration, this::onErrorCaused));
+		requestFutures.add(context.executeRequestAsync(request, Document.class,
+				HttpCallbacks.onEither(this::doConfiguration, this::onErrorCaused)));
+	}
+
+	private void reconnect() {
+		cancelRequests();
+		configurationCompleted = false;
+		reconnectAttempts.getAndIncrement();
+		connect();
 	}
 
 	private void ping() {
@@ -164,8 +202,8 @@ public class ChatConnection {
 
 		// выбираем нужный профиль перед отпракой запроса
 		context.getProfileManager().selectProfile(profile);
-		context.executeRequestAsync(request, JsonElement.class,
-				HttpCallbacks.onEither(this::processUpdateResponse, this::onErrorCaused));
+		requestFutures.add(context.executeRequestAsync(request, JsonElement.class,
+				HttpCallbacks.onEither(this::processUpdateResponse, this::onErrorCaused)));
 
 		lastPingTime = System.currentTimeMillis();
 	}
@@ -179,12 +217,21 @@ public class ChatConnection {
 		// если конфигурация прошла успешно, то пингуем скрипт
 		// каждые N миллисекунд (указано в конфигурации чата)
 		if (configurationCompleted) {
+			if (System.currentTimeMillis() - lastPongTime > CONNECTION_RESET_TIME) {
+				Log.error("%s connection reset. Reconnecting... (attempt %d/%d)", profile.getAlias(),
+						reconnectAttempts.get()+1, chatSession.getMaximumReconnectAttempts());
+				reconnect();
+				return true;
+			}
+
 			long time = System.currentTimeMillis();
 			if (time > lastPingTime + configuration.getPingPeriod()) {
 				ping();
 			}
 		}
 
+		// удаляем завершеные запросы
+		requestFutures.removeIf(Future::isDone);
 		return true;
 	}
 
@@ -195,44 +242,60 @@ public class ChatConnection {
 	}
 
 	public void sendMessage(String message) {
-		if (Strings.isNullOrEmpty(message)) {
-			return;
-		}
-
-		if (invalid || !configurationCompleted) {
-			Log.warn("Could not send chat message as %s, because connection not configured yet",
-					profile.getUsername());
-			return;
-		}
-
 		BotContext context = chatSession.getContext();
+		context.invokeMainThreadCommand(() -> {
+			if (Strings.isNullOrEmpty(message)) {
+				return;
+			}
 
-		// отправляем асинхронный запрос на ajax-скрипт чата
-		Map<String, String> params = Maps.newHashMap();
-		params.put("action", "chat");
-		params.put("chat_message", message);
-		params.put("chat_sid", configuration.getSessionId());
-		params.put("theme", configuration.getTheme());
-		HttpUriRequest request = context.buildPostRequest(configuration.getChatModuleLink(), params);
+			if (invalid || !configurationCompleted) {
+				Log.warn("Could not send chat message as %s, because connection is not configured yet",
+						profile.getUsername());
+				return;
+			}
 
-		// выбираем нужный профиль перед отпракой запроса
-		context.getProfileManager().selectProfile(profile);
-		context.executeRequestAsync(request, String.class,
-				HttpCallbacks.onEither(this::processSendMessageResponse, this::onErrorCaused));
+			// отправляем асинхронный запрос на ajax-скрипт чата
+			Map<String, String> params = Maps.newHashMap();
+			params.put("action", "chat");
+			params.put("chat_message", message);
+			params.put("chat_sid", configuration.getSessionId());
+			params.put("theme", configuration.getTheme());
+			HttpUriRequest request = context.buildPostRequest(configuration.getChatModuleLink(), params);
 
-		Log.info("%s (%s) sended message '%s' to chat", profile.getUsername(), profile.getProfileName(), message);
+			// выбираем нужный профиль перед отпракой запроса
+			context.getProfileManager().selectProfile(profile);
+			requestFutures.add(context.executeRequestAsync(request, String.class,
+					HttpCallbacks.onEither(this::processSendMessageResponse, this::onErrorCaused)));
+
+			Log.info("%s sended message '%s' to chat", profile.getAlias(), message);
+		});
+	}
+
+	private void cancelRequests() {
+		chatSession.getContext().invokeMainThreadCommand(() -> {
+			for (Future<HttpResponse> future: requestFutures) {
+				if (!future.isDone() && !future.isCancelled()) {
+					future.cancel(true);
+				}
+			}
+			requestFutures.clear();
+		});
 	}
 
 	public void close() {
-		Log.info("%s (%s) connection to chat '%s' closed", profile.getUsername(), profile.getProfileName(),
-				configuration.getTitle());
+		Log.info("%s connection to chat '%s' closed", profile.getAlias(), configuration.getTitle());
 
 		// запрещаем отправку сообщений после закрытия подключения
 		invalid = true;
 		configurationCompleted = false;
+		cancelRequests();
 	}
 
 	public Profile getProfile() {
 		return profile;
+	}
+
+	public boolean isInvalid() {
+		return invalid;
 	}
 }

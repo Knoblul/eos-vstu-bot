@@ -192,4 +192,8 @@ public class Profile {
 		profileId = "";
 		Arrays.fill(cookies, "");
 	}
+
+	public String getAlias() {
+		return username + " (" + profileName + "#" + profileId + ")";
+	}
 }

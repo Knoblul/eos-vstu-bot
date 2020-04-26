@@ -78,8 +78,7 @@ public class ChatTest {
 				try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, Charsets.UTF_8))) {
 					String ln;
 					while ((ln = reader.readLine()) != null) {
-						final String message = ln;
-						context.invokeMainThreadCommand(() -> connection.sendMessage(message));
+						connection.sendMessage(ln);
 					}
 				} catch (IOException e) {
 					e.printStackTrace();

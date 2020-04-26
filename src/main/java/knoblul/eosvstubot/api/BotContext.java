@@ -25,6 +25,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import knoblul.eosvstubot.api.chat.ChatSession;
 import knoblul.eosvstubot.api.handlers.BotHandler;
+import knoblul.eosvstubot.api.network.ConnectionProblemsDetector;
 import knoblul.eosvstubot.api.profile.ProfileManager;
 import knoblul.eosvstubot.api.schedule.LessonsManager;
 import knoblul.eosvstubot.gui.BotMainWindow;
@@ -124,6 +125,8 @@ public class BotContext {
 	 */
 	private Queue<Runnable> mainThreadCommands = Queues.newConcurrentLinkedQueue();
 
+	private ConnectionProblemsDetector connectionProblemsDetector;
+
 	private Map<URI, ChatSession> chatSessions = Maps.newHashMap();
 
 	private List<BotHandler> handlers = Lists.newArrayList();
@@ -131,7 +134,7 @@ public class BotContext {
 	public BotContext() {
 		mainThread = Thread.currentThread();
 		if (!mainThread.getName().equals("main")) {
-			throw new IllegalStateException("Context can be created only from the main thread!");
+			throw new IllegalStateException("Context can be created only from the main thread.");
 		}
 
 		profileManager = new ProfileManager(this);
@@ -141,9 +144,18 @@ public class BotContext {
 	/**
 	 * Проверяет экземпляр на наличие контекста.
 	 */
-	private void check() {
+	private void requireValidContext() {
 		if (client == null) {
 			throw new IllegalStateException("Context not created yet");
+		}
+	}
+
+	/**
+	 * Проверяет среду на текущий поток
+	 */
+	public void requireMainThread() {
+		if (Thread.currentThread() != mainThread) {
+			throw new IllegalStateException("This method must only be called from main thread");
 		}
 	}
 
@@ -158,10 +170,7 @@ public class BotContext {
 		if (client != null) {
 			throw new IllegalStateException("Context already created");
 		}
-
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireMainThread();
 
 		cookieStore = new BasicCookieStore();
 
@@ -176,6 +185,19 @@ public class BotContext {
 				.build();
 
 		asyncClient.start();
+
+		connectionProblemsDetector = new ConnectionProblemsDetector(BotConstants.SITE_DOMAIN,
+				this::onInternetIssuesDetectorPingResult);
+	}
+
+	private void onInternetIssuesDetectorPingResult(int badAttempts, boolean reachable) {
+		if (badAttempts == 3 && !reachable) {
+			Log.warn("Seems like there are connection problems");
+		}
+
+		if (badAttempts > 3 && reachable) {
+			invokeMainThreadCommand(this::reconnect);
+		}
 	}
 
 	/**
@@ -204,10 +226,8 @@ public class BotContext {
 	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
 	public void occupyMainThread() {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		Log.info("Command processing started");
 		while (true) {
@@ -230,10 +250,8 @@ public class BotContext {
 	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
 	public void update() {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		Runnable command;
 		while ((command = mainThreadCommands.poll()) != null) {
@@ -253,15 +271,13 @@ public class BotContext {
 	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
 	public void stopMainThreadCommandsProcessing() {
-		check();
+		requireValidContext();
 		mainThread.interrupt();
 	}
 
 	public <T extends BotHandler> T registerHandler(Class<T> handlerClass) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		Constructor<T> constructor = ConstructorUtils.getAccessibleConstructor(handlerClass, BotContext.class);
 		if (constructor == null) {
@@ -282,7 +298,7 @@ public class BotContext {
 	 * @return {@link #profileManager}
 	 */
 	public ProfileManager getProfileManager() {
-		check();
+		requireValidContext();
 		return profileManager;
 	}
 
@@ -291,7 +307,7 @@ public class BotContext {
 	 * @return {@link #lessonsManager}
 	 */
 	public LessonsManager getLessonsManager() {
-		check();
+		requireValidContext();
 		return lessonsManager;
 	}
 
@@ -302,10 +318,8 @@ public class BotContext {
 	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
 	public void loadManagers() {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 		profileManager.load();
 		lessonsManager.load();
 	}
@@ -317,10 +331,8 @@ public class BotContext {
 	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после вызова {@link #destroy()}.</p>
 	 */
 	public void clearCookies() {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 		cookieStore.clear();
 	}
 
@@ -334,10 +346,8 @@ public class BotContext {
 	 */
 	@Nullable
 	public Cookie getCookie(@NotNull String name) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		for (Cookie cookie: cookieStore.getCookies()) {
 			if (cookie.getName().equals(name)) {
@@ -357,10 +367,8 @@ public class BotContext {
 	 */
 	@Nullable
 	public String getCookieValue(@NotNull String name) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		Cookie cookie = getCookie(name);
 		return cookie != null ? cookie.getValue() : null;
@@ -378,10 +386,8 @@ public class BotContext {
 	 * @param path путь до куки или <code>null</code>
 	 */
 	public void setCookie(@NotNull String name, @Nullable Object value, @NotNull String domain, @NotNull String path) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		BasicClientCookie cookie = new BasicClientCookie(name, value == null ? "" : value.toString());
 		cookie.setDomain(domain);
@@ -403,10 +409,8 @@ public class BotContext {
 	 */
 	@NotNull
 	public HttpUriRequest buildGetRequest(@NotNull String uri, @Nullable Map<String, String> params) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		RequestConfig config = RequestConfig.copy(RequestConfig.DEFAULT)
 				.setRedirectsEnabled(true)
@@ -442,10 +446,8 @@ public class BotContext {
 	 */
 	@NotNull
 	public HttpUriRequest buildPostRequest(@NotNull String uri, @Nullable Map<String, String> postParams) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		RequestConfig config = RequestConfig.copy(RequestConfig.DEFAULT)
 				.setRedirectsEnabled(true)
@@ -485,10 +487,8 @@ public class BotContext {
 	 */
 	@NotNull
 	public <T> T executeRequest(@NotNull HttpUriRequest request, Class<T> expectedResponseClass) throws IOException {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		try (CloseableHttpResponse response = client.execute(request)) {
 			StatusLine statusLine = response.getStatusLine();
@@ -545,17 +545,16 @@ public class BotContext {
 	 * @param expectedResponseClass класс, указывающий на вид типа.
 	 * @param responseCallback коллбек, который вызывается HTTP клиентом
 	 *                           после получения ответа или ошибки
+	 * @return Future для управления состоянием выполнения запроса
 	 */
-	public <T> void executeRequestAsync(@NotNull HttpUriRequest request, Class<T> expectedResponseClass,
+	public <T> Future<HttpResponse> executeRequestAsync(@NotNull HttpUriRequest request, Class<T> expectedResponseClass,
 										FutureCallback<T> responseCallback) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		Exception callStackTrace = new Exception("Call stack trace");
 		// добавил декоратор, чтобы получать не "сырые" ответы в коллбеках
-		asyncClient.execute(request, new FutureCallback<HttpResponse>() {
+		return asyncClient.execute(request, new FutureCallback<HttpResponse>() {
 			@Override
 			public void completed(HttpResponse result) {
 				// чтобы коллбек "фейлился" при статусе, отличном от 200 OK
@@ -634,20 +633,28 @@ public class BotContext {
 	}
 
 	public ChatSession createChatSession(String chatLink) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
+
 		return chatSessions.computeIfAbsent(URI.create(chatLink), (k) -> new ChatSession(this, chatLink));
 	}
 
 	public void destroyChatSession(ChatSession session) {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
+
 		chatSessions.values().remove(session);
 		session.close();
+	}
+
+	private void reconnect() {
+		requireValidContext();
+		requireMainThread();
+
+
+		Log.info("Trying to reconnect all context modules...");
+		handlers.forEach(BotHandler::reconnect);
+		profileManager.checkProfiles();
 	}
 
 	/**
@@ -658,10 +665,8 @@ public class BotContext {
 	 * <p>Эта функция не должна вызываться до вызыова {@link #create()} и после уничтожения контекста.</p>
 	 */
 	public void destroy() {
-		check();
-		if (Thread.currentThread() != mainThread) {
-			throw new IllegalStateException("This function must only be called from main thread");
-		}
+		requireValidContext();
+		requireMainThread();
 
 		if (client != null) {
 			try {
@@ -675,6 +680,11 @@ public class BotContext {
 				asyncClient.close();
 			} catch (IOException ignored) { }
 			asyncClient = null;
+		}
+
+		if (connectionProblemsDetector != null) {
+			connectionProblemsDetector.destroy();
+			connectionProblemsDetector = null;
 		}
 	}
 }

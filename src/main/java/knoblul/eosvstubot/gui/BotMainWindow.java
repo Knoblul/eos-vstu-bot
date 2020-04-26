@@ -104,7 +104,9 @@ public class BotMainWindow extends JFrame {
 		SwingUtilities.invokeLater(() -> {
 			try {
 				int consoleIndex = tabs.indexOfComponent(consoleComponent);
-				tabs.setForegroundAt(consoleIndex, Color.RED.brighter().brighter());
+				if (tabs.getSelectedIndex() != consoleIndex) {
+					tabs.setForegroundAt(consoleIndex, Color.RED.brighter().brighter());
+				}
 			} catch (Throwable ignored) { }
 		});
 	}

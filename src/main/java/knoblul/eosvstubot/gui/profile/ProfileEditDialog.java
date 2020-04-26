@@ -159,7 +159,7 @@ class ProfileEditDialog extends JComponent {
 						try {
 							profileManager.loginProfile(profile);
 						} catch (IOException e) {
-							DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.", e);
+							DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.", e, true);
 						}
 					}
 

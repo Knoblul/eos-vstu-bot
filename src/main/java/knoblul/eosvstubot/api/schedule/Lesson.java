@@ -16,7 +16,6 @@
 package knoblul.eosvstubot.api.schedule;
 
 import java.util.Calendar;
-import java.util.concurrent.TimeUnit;
 
 /**
  * <br><br>Module: eos-vstu-bot

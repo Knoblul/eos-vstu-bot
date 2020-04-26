@@ -17,7 +17,6 @@ package knoblul.eosvstubot.gui.chat.controls;
 
 import knoblul.eosvstubot.api.chat.ChatConnection;
 import knoblul.eosvstubot.api.handlers.ScheduledConnectionsHandler;
-import knoblul.eosvstubot.api.profile.Profile;
 
 import javax.swing.*;
 import java.awt.*;
@@ -43,8 +42,7 @@ public class UserSelectionComponent extends JComboBox<ScheduledConnectionsHandle
 					ChatConnection connection = ((ScheduledConnectionsHandler.ScheduledConnection) value)
 							.getConnection();
 					if (connection != null) {
-						Profile profile = connection.getProfile();
-						label.setText(profile.getProfileName() + " (" + profile.getUsername() + ")");
+						label.setText(connection.getProfile().getAlias());
 					}
 				}
 				return label;

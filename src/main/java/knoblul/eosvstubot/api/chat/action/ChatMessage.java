@@ -17,7 +17,6 @@ package knoblul.eosvstubot.api.chat.action;
 
 import com.google.gson.JsonObject;
 import org.apache.commons.text.StringEscapeUtils;
-import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
@@ -30,6 +29,7 @@ import java.util.Objects;
  * @author Knoblul
  */
 public class ChatMessage {
+	private String timestamp;
 	private String time;
 	private String user;
 	private String userId;
@@ -48,6 +48,7 @@ public class ChatMessage {
 		}
 
 		userId = jsonObject.get("userid").getAsString();
+		timestamp = jsonObject.get("timestamp").getAsString();
 
 		String messageContent = StringEscapeUtils.unescapeJson(jsonObject.get("message").getAsString());
 		Document messageDocument = Jsoup.parse(messageContent, "");
@@ -93,11 +94,13 @@ public class ChatMessage {
 		return systemMessage == message.systemMessage &&
 				user.equals(message.user) &&
 				userId.equals(message.userId) &&
-				text.equals(message.text);
+				text.equals(message.text) &&
+				time.equals(message.time) &&
+				timestamp.equals(message.timestamp);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(user, userId, text, systemMessage);
+		return Objects.hash(timestamp, time, user, userId, text, systemMessage);
 	}
 }

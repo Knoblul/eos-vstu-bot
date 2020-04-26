@@ -105,7 +105,7 @@ public class ProfileManager {
 			}
 		}
 		Log.info("Checking profiles...");
-		profiles.forEach(this::checkProfile);
+		checkProfiles();
 		save();
 	}
 
@@ -126,13 +126,14 @@ public class ProfileManager {
 	 * Парсит данные профиля с главной страницы. Проверяет залогинен ли пользователь.
 	 * Если залогинен, то парсит и устанавливает настоящее имя пользователя и ссылку на профиль.
 	 * @param index страница главной
+	 * @throws SessionExpiredException если указанный профиль не залогинен на сайте
 	 * @throws IOException если произошла неизвестная ошибка, например
 	 * код index-страницы был изменен и парсинг невозможен.
 	 */
 	private static void parseIndexProfileInfo(@NotNull Profile profile, @NotNull Document index) throws IOException {
 		Elements userMenu = index.select(".navbar .navbar-inner .container-fluid .usermenu");
 		if (!userMenu.select(".login").isEmpty()) {
-			throw new IOException("Invalid login");
+			throw new SessionExpiredException(profile);
 		} else {
 			Elements profileNameElement = userMenu.select(".menubar li a .userbutton .usertext");
 			if (profileNameElement.isEmpty()) {
@@ -197,8 +198,12 @@ public class ProfileManager {
 			profile.setValid(true);
 		} catch (IOException e) {
 			// фоллбек стратегия - логинемся на сайте заново.
-			Log.warn(e.getMessage().equalsIgnoreCase("Invalid login") ? null : e,
-					"%s check failed. Logging in...", profile.getUsername());
+			if (e instanceof SessionExpiredException) {
+				Log.info("%s session expired. Logging in...", profile.getUsername());
+			} else {
+				Log.warn(e, "%s check failed. Logging in...", profile.getUsername());
+			}
+
 			try {
 				loginProfile(profile);
 			} catch (IOException x) {
@@ -255,7 +260,7 @@ public class ProfileManager {
 		cookies[0] = context.getCookieValue(COOKIE_MID_NAME);
 		cookies[1] = context.getCookieValue(COOKIE_SESSION_NAME);
 
-		Log.info("%s (%s) successfully logged in", profile.getUsername(), profile.getProfileName());
+		Log.info("%s successfully logged in", profile.getAlias());
 		profile.setValid(true);
 	}
 
@@ -311,5 +316,9 @@ public class ProfileManager {
 	 */
 	public void removeProfile(@NotNull Profile profile) {
 		profiles.remove(profile);
+	}
+
+	public void checkProfiles() {
+		profiles.forEach(this::checkProfile);
 	}
 }
