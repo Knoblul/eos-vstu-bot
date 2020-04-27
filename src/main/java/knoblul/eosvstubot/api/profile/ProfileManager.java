@@ -261,6 +261,9 @@ public class ProfileManager implements BotHandler {
 		cookies[0] = context.getCookieValue(COOKIE_MID_NAME);
 		cookies[1] = context.getCookieValue(COOKIE_SESSION_NAME);
 
+		// очищаем лишние куки
+		selectProfile(profile);
+
 		Log.info("%s successfully logged in", profile);
 		profile.setValid(true);
 	}

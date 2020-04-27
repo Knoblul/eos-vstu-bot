@@ -235,10 +235,14 @@ public class ChatConnection {
 
 		HttpUriRequest request = context.buildGetRequest(chatSession.getChatIndexLink(), null);
 
-		// выбираем нужный профиль перед отпракой запроса
-		context.getProfileManager().selectProfile(profile);
-		requestFutures.add(context.executeRequestAsync(request, Document.class,
-				HttpCallbacks.onEither(this::doConfiguration, this::onErrorCaused)));
+		// логинем + выбираем нужный профиль перед отпракой запроса на вход
+		try {
+			context.getProfileManager().loginProfile(profile);
+			requestFutures.add(context.executeRequestAsync(request, Document.class,
+					HttpCallbacks.onEither(this::doConfiguration, this::onErrorCaused)));
+		} catch (IOException e) {
+			onErrorCaused(new IOException("Failed to login", e));
+		}
 	}
 
 	/**
