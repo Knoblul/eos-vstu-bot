@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot;
+package knoblul.eosvstubot.tests.special;
 
 import com.google.common.base.Charsets;
 import knoblul.eosvstubot.api.BotContext;
@@ -22,6 +22,7 @@ import knoblul.eosvstubot.api.chat.ChatSession;
 import knoblul.eosvstubot.api.chat.listening.ChatConnectionListener;
 import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.utils.Log;
+import org.junit.Assert;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,13 +33,17 @@ import java.io.InputStreamReader;
  * <br>Created: 24.04.2020 11:42
  * @author Knoblul
  */
-public class ChatTest {
-	public static void main(String[] args) throws IOException {
+public class ChatTest extends Assert {
+	public void testChatConnection() throws IOException {
 		BotContext context = new BotContext();
-		try {
+		try (BufferedReader consoleReader = new BufferedReader(new InputStreamReader(System.in, Charsets.UTF_8))) {
 			context.create();
 
-			String chatLink = "http://eos.vstu.ru/mod/chat/gui_ajax/index.php?id=1946";
+//			String chatLink = "http://eos.vstu.ru/mod/chat/gui_ajax/index.php?id=1946";
+			System.out.print("Chat link: ");
+			String chatLink = consoleReader.readLine();
+			System.out.println();
+
 			ChatSession session = context.createChatSession(chatLink);
 
 			session.addChatActionListener((connection, action) -> {
@@ -68,16 +73,22 @@ public class ChatTest {
 				}
 			});
 
+			System.out.print("Username: ");
+			String username = consoleReader.readLine().trim();
+			System.out.println("Password: ");
+			String password = consoleReader.readLine();
+			System.out.println();
+
 			Profile profile = new Profile();
-			profile.setCredentials("user", "pass");
+			profile.setCredentials(username, password);
 			context.getProfileManager().loginProfile(profile);
 
 			ChatConnection connection = session.createConnection(profile);
 
 			Thread consoleReadThread = new Thread(() -> {
-				try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, Charsets.UTF_8))) {
+				try {
 					String ln;
-					while ((ln = reader.readLine()) != null) {
+					while ((ln = consoleReader.readLine()) != null) {
 						connection.sendMessage(ln);
 					}
 				} catch (IOException e) {

@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot;
+package knoblul.eosvstubot.utils;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.api.schedule.Lesson;
 import knoblul.eosvstubot.gui.schedule.ScheduleManagerComponent;
-import knoblul.eosvstubot.utils.Log;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.jetbrains.annotations.NotNull;
@@ -33,7 +34,10 @@ import org.jsoup.select.Elements;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DateFormatSymbols;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -156,7 +160,7 @@ public class VolgasuScheduleGenerator {
 							Lesson lesson = new Lesson();
 							lesson.setName(title + ", " + type);
 							lesson.setTeacher(teacher);
-							lesson.setScheduleTime(scheduleTime);
+							lesson.setScheduleTime(scheduleTime - TimeUtils.getUtcOffset());
 							lesson.setWeekIndex(currentWeek.contains("II") ? 1 : 0);
 							lesson.setDuration(Lesson.DEFAULT_LESSON_DURATION);
 							lesson.setChatId(chatId);
@@ -177,8 +181,36 @@ public class VolgasuScheduleGenerator {
 		}
 
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+		JsonObject object = new JsonObject();
 		JsonArray array = new JsonArray();
 		lessons.forEach(lesson -> array.add(gson.toJsonTree(lesson)));
-		gson.toJson(array, writer);
+		object.add("schedule", array);
+		gson.toJson(object, writer);
+	}
+
+	/**
+	 * Запускается прямо из билд-скрипта
+	 * командой generateScheduleVolgasu
+	 */
+	public static void main(@NotNull String[] args) throws IOException {
+		if (args.length < 3) {
+			throw new RuntimeException("Missing program parameters [username, password, scheduleID]\npassed: " + Arrays.toString(args));
+		}
+
+		BotContext context = new BotContext();
+		context.create();
+		try (BufferedWriter writer = Files.newBufferedWriter(Paths.get("schedule_generated.json"))) {
+			String username = args[0];
+			String password = args[1];
+			String scheduleId = args[2];
+
+			Log.info("Logging in...");
+			context.getProfileManager().loginProfile(new Profile(username, password));
+			Log.info("Starting schedule generation...");
+			VolgasuScheduleGenerator.generateScheduleJson(context, scheduleId, writer);
+			Log.info("Schedule successfuly generated");
+		} finally {
+			context.destroy();
+		}
 	}
 }

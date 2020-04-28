@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package knoblul.eosvstubot;
+package knoblul.eosvstubot.tests.special;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -23,6 +23,8 @@ import knoblul.eosvstubot.api.chat.action.ChatMessage;
 import knoblul.eosvstubot.utils.Log;
 import org.apache.logging.log4j.Level;
 import org.jsoup.select.Elements;
+import org.junit.Assert;
+import org.junit.Test;
 
 import javax.swing.*;
 import javax.swing.text.SimpleAttributeSet;
@@ -39,7 +41,7 @@ import java.nio.file.Paths;
  * <br>Created: 25.04.2020 17:48
  * @author Knoblul
  */
-public class RuntimeTests {
+public class ChatGuiTest extends Assert {
 	private static Gson GSON = new GsonBuilder().setPrettyPrinting().setLenient().create();
 	private static JTextPane chatPane = new JTextPane();
 
@@ -121,11 +123,12 @@ public class RuntimeTests {
 		try (BufferedReader reader = Files.newBufferedReader(Paths.get("moz-captures/" + name))) {
 			JsonObject jsonObject = GSON.fromJson(reader, JsonObject.class);
 			ChatAction action = new ChatAction(jsonObject);
-			action.getNewMessages().forEach(RuntimeTests::appendMessage);
+			action.getNewMessages().forEach(ChatGuiTest::appendMessage);
 		}
 	}
 
-	public static void main(String[] args) throws IOException {
+	@Test
+	public void testChatGUI() throws IOException {
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (Throwable ignored) { }
@@ -159,48 +162,5 @@ public class RuntimeTests {
 				break;
 			}
 		}
-
-//		try (BufferedReader reader = Files.newBufferedReader(Paths.get("moz-captures/message_dialogue.json"))) {
-//			JsonObject jsonObject = GSON.fromJson(reader, JsonObject.class);
-//			ChatAction action = new ChatAction(jsonObject);
-//
-//			Log.info("Messages: ");
-//			for (ChatMessage message: action.getNewMessages()) {
-//				Log.info("messageDocument='%s'", message.getMessageDocument());
-//				Log.info("text='%s'", message.getText());
-//				Log.info("user='%s'", message.getUser());
-//				Log.info("userId='%s'", message.getUserId());
-//				Log.info("messageType='%s'", message.getMessageType());
-//			}
-//
-//			if (action.getUsers() != null) {
-//				Log.info("\nUsers: ");
-//				for (ChatUserInformation user : action.getUsers()) {
-//					Log.info("name='%s'", user.getName());
-//					Log.info("url='%s'", user.getUrl());
-//					Log.info("picture='%s'", user.getPicture());
-//					Log.info("id='%s'", user.getId());
-//				}
-//			}
-//		}
-
-//		while (true) {
-//			Stopwatch sw = Stopwatch.createStarted();
-//			boolean reachable = false;
-//			try {
-//				reachable = InetAddress.getByName(BotConstants.SITE_DOMAIN).isReachable(15000);
-//			} catch (Throwable ignored) {}
-//			Log.info("Reachable: %s", reachable);
-//			sw.stop();
-//
-//			long elapsed = sw.elapsed(TimeUnit.MILLISECONDS);
-//			if (5000 - elapsed > 0) {
-//				try {
-//					Thread.sleep(5000 - elapsed);
-//				} catch (InterruptedException e) {
-//					break;
-//				}
-//			}
-//		}
 	}
 }

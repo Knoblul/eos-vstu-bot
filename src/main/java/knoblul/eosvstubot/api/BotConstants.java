@@ -23,6 +23,6 @@ package knoblul.eosvstubot.api;
  */
 public interface BotConstants {
 	String NAME = "eos-vstu-bot";
-	String VERSION = "0.1.1";
+	String VERSION = "0.1.2";
 	String SITE_DOMAIN = "eos.vstu.ru";
 }

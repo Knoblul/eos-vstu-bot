@@ -3,7 +3,7 @@ plugins {
 }
 
 group 'knoblul.eosvstubot'
-version '0.1.1'
+version '0.1.2'
 
 compileJava.options.encoding = 'UTF-8'
 sourceCompatibility = 1.8
@@ -34,10 +34,35 @@ dependencies {
     implementation 'org.jetbrains:annotations:18.0.0'
     implementation 'org.apache.logging.log4j:log4j-api:2.13.1'
     implementation 'org.apache.logging.log4j:log4j-core:2.13.1'
-    implementation 'org.apache.commons:commons-text:1.8'
     implementation 'com.google.guava:guava:29.0-jre'
     implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'org.apache.commons:commons-text:1.8'
+    implementation 'commons-net:commons-net:3.6'
     implementation 'org.apache.httpcomponents:httpclient:4.5.12'
     implementation 'org.apache.httpcomponents:httpasyncclient:4.1.4'
     implementation 'org.jsoup:jsoup:1.13.1'
+
+    testImplementation 'junit:junit:4.12'
+}
+
+task generateScheduleVolgasu(type: JavaExec) {
+    // генерация ВолгГАСУ-расписания
+    // если есть файл gradle.properties, в нем должны быть поля
+    // eosvstu_username=логин
+    // eosvstu_password=пароль
+    // eosvstu_scheduleID=айди расписания
+    main = 'knoblul.eosvstubot.utils.VolgasuScheduleGenerator'
+    classpath = sourceSets.main.runtimeClasspath
+    if (project.hasProperty('eosvstu_username')) {
+        def username = project.property('eosvstu_username')
+        def password = project.property('eosvstu_password')
+        def scheduleID = project.property('eosvstu_scheduleID')
+        args username, password, scheduleID
+    }
+}
+
+test {
+    filter {
+        includeTestsMatching 'knoblul.eosvstubot.tests.passing*'
+    }
 }

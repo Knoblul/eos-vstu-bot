@@ -86,6 +86,12 @@ public class Profile {
 	 */
 	private transient boolean valid;
 
+	public Profile() { }
+
+	public Profile(String username, String password) {
+		setCredentials(username, password);
+	}
+
 	public String getUsername() {
 		return username;
 	}

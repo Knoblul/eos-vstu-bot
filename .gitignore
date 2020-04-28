@@ -21,6 +21,10 @@ profiles.json
 schedule.json
 chat.json
 
+# градл файл локальных настроек
+# хранит личную инфу!
+build.gradle
+
 # файлы капчуров страниц из мозилы
 moz-captures/
 

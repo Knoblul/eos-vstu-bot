@@ -15,6 +15,8 @@
  */
 package knoblul.eosvstubot.api.schedule;
 
+import knoblul.eosvstubot.utils.TimeUtils;
+
 import java.util.Calendar;
 
 /**
@@ -41,7 +43,7 @@ public class Lesson {
 	private String teacher = "";
 
 	/**
-	 * Время старта предмета, от начала недели, в миллисекундах.
+	 * UTC-время старта предмета, от начала недели, в миллисекундах.
 	 */
 	private long scheduleTime = 0;
 
@@ -115,7 +117,9 @@ public class Lesson {
 		calendar.clear(Calendar.SECOND);
 		calendar.clear(Calendar.MILLISECOND);
 		calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek());
-		calendar.setTimeInMillis(calendar.getTimeInMillis() + scheduleTime);
+
+		long utcTime = calendar.getTimeInMillis() + TimeUtils.convertUTCtoLocal(getScheduleTime());
+		calendar.setTimeInMillis(utcTime);
 		return calendar;
 	}
 }

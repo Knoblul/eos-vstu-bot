@@ -18,6 +18,7 @@ package knoblul.eosvstubot.gui.schedule;
 import knoblul.eosvstubot.api.schedule.Lesson;
 import knoblul.eosvstubot.api.schedule.LessonsManager;
 import knoblul.eosvstubot.gui.BotMainWindow;
+import knoblul.eosvstubot.utils.TimeUtils;
 import knoblul.eosvstubot.utils.swing.TimeChooser;
 
 import javax.swing.*;
@@ -153,7 +154,7 @@ class LessonEditDialog extends JComponent {
 		long scheduleTime = TimeUnit.DAYS.toMillis(dayOfWeekComboBox.getSelectedIndex()) + timeSpinner.getTimeMillis();
 		lesson.setName(nameField.getText().trim());
 		lesson.setTeacher(teacherField.getText().trim());
-		lesson.setScheduleTime(scheduleTime);
+		lesson.setScheduleTime(TimeUtils.convertLocalToUTC(scheduleTime));
 		lesson.setWeekIndex(weekIndex);
 		lesson.setDuration(durationSpinner.getTimeMillis());
 		lesson.setChatId(chatIdField.getText().trim());
