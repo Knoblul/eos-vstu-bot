@@ -23,7 +23,7 @@ chat.json
 
 # градл файл локальных настроек
 # хранит личную инфу!
-build.gradle
+gradle.properties
 
 # файлы капчуров страниц из мозилы
 moz-captures/
