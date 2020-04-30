@@ -6,3 +6,8 @@ function onConnected(chatConnection) {
 	var joinMessage = joinMessages[Math.floor(Math.random() * joinMessages.length)]
 	chatConnection.sendMessage(joinMessage)
 }
+
+// эта функция вызывается при получении обновления от чат-сервера
+function onChatAction(chatConnection, chatAction) {
+
+}
