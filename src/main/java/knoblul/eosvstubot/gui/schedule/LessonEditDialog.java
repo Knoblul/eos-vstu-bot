@@ -51,6 +51,7 @@ class LessonEditDialog extends JComponent {
 	private TimeChooser timeSpinner;
 	private TimeChooser durationSpinner;
 	private JTextField chatIdField;
+	private JCheckBox silentModeCheckBox;
 
 	LessonEditDialog() {
 		fill();
@@ -132,6 +133,19 @@ class LessonEditDialog extends JComponent {
 		gbc.weightx = 0;
 		gbc.gridy++;
 
+		gbc.fill = GridBagConstraints.NONE;
+		gbc.anchor = GridBagConstraints.WEST;
+		add(new JLabel("Тихий режим"), gbc);
+		gbc.anchor = GridBagConstraints.CENTER;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1;
+		add(silentModeCheckBox = new JCheckBox(), gbc);
+		silentModeCheckBox.setToolTipText("Тихий режим запрещает ботам отправку всех сообщений. " +
+				"Нужно чтобы бот просто присутствовал в чате, но не отправлял сообщения. Все что бот " +
+				"\"хотел\" отправить отправляется в консоль.");
+		gbc.weightx = 0;
+		gbc.gridy++;
+
 		setPreferredSize(new Dimension(300, getPreferredSize().height));
 	}
 
@@ -143,6 +157,7 @@ class LessonEditDialog extends JComponent {
 		timeSpinner.set(calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), calendar.get(Calendar.SECOND));
 		durationSpinner.setTimeMillis(editingLesson != null ? editingLesson.getDuration() : Lesson.DEFAULT_LESSON_DURATION);
 		chatIdField.setText(editingLesson != null ? editingLesson.getChatId() : "");
+		silentModeCheckBox.setSelected(editingLesson != null && editingLesson.isSilentMode());
 
 		String title = editingLesson == null ? "Создать предмет" : "Изменить данные предмета";
 		if (JOptionPane.showConfirmDialog(BotMainWindow.instance, this, title,
@@ -158,6 +173,7 @@ class LessonEditDialog extends JComponent {
 		lesson.setWeekIndex(weekIndex);
 		lesson.setDuration(durationSpinner.getTimeMillis());
 		lesson.setChatId(chatIdField.getText().trim());
+		lesson.setSilentMode(silentModeCheckBox.isSelected());
 		lessonsManager.save();
 		return true;
 	}

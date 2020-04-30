@@ -62,6 +62,13 @@ public class Lesson {
 	 */
 	private String chatId = "";
 
+	/**
+	 * Флаг, который указывает боту,
+	 * чтобы он не отправлял никаких сообщений когда идет
+	 * эта пара.
+	 */
+	private boolean silentMode;
+
 	public long getScheduleTime() {
 		return scheduleTime;
 	}
@@ -108,6 +115,14 @@ public class Lesson {
 
 	public void setChatId(String chatId) {
 		this.chatId = chatId;
+	}
+
+	public boolean isSilentMode() {
+		return silentMode;
+	}
+
+	public void setSilentMode(boolean silentMode) {
+		this.silentMode = silentMode;
 	}
 
 	public Calendar getRelativeCalendar() {

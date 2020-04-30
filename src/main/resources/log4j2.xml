@@ -27,6 +27,7 @@
         </Console>
 		<TextPaneAppender name="TextPaneAppender">
 			<PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger] %msg%n" />
+			<ThresholdFilter level="INFO" />
 		</TextPaneAppender>
 		<TextPaneAppender name="TextPaneAppender">
 			<PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level] [%logger] %msg%n" />

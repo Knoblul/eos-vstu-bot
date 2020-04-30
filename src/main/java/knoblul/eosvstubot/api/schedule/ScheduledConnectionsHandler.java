@@ -21,12 +21,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import knoblul.eosvstubot.api.BotConstants;
 import knoblul.eosvstubot.api.BotContext;
+import knoblul.eosvstubot.api.BotHandler;
 import knoblul.eosvstubot.api.chat.ChatConnection;
 import knoblul.eosvstubot.api.chat.ChatSession;
-import knoblul.eosvstubot.api.BotHandler;
 import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.api.profile.ProfileManager;
+import knoblul.eosvstubot.api.scripting.Script;
 import knoblul.eosvstubot.utils.Log;
+import knoblul.eosvstubot.utils.swing.DialogUtils;
 import org.apache.commons.lang3.RandomUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -51,6 +53,7 @@ import java.util.function.Consumer;
  *
  * <br><br>Module: eos-vstu-bot
  * <br>Created: 25.04.2020 12:15
+ *
  * @author Knoblul
  */
 public class ScheduledConnectionsHandler implements BotHandler {
@@ -120,8 +123,6 @@ public class ScheduledConnectionsHandler implements BotHandler {
 		acc.chatLink = currentChatSession.getChatIndexLink();
 		long lessonStartTime = currentLesson.getRelativeCalendar().getTimeInMillis();
 		acc.scheduledJoinTime = lessonStartTime + RandomUtils.nextLong(0, profile.getMaximumLateTime() + 1);
-		String[] phrases = profile.getChatPhrases();
-		acc.scheduledJoinMessage = phrases[RandomUtils.nextInt(0, profile.getChatPhrases().length)];
 		acc.setHandler(this);
 		message("Created scheduled connection for %s. Planned time: %s", profile.getUsername(),
 				new SimpleDateFormat("dd.MM.YYYY HH:mm:ss").format(acc.scheduledJoinTime));
@@ -163,11 +164,45 @@ public class ScheduledConnectionsHandler implements BotHandler {
 				currentChatSession.destroy();
 			}
 			currentChatSession = context.createChatSession(chatLink);
+			currentChatSession.setMessageSendingDisabled(lesson.isSilentMode());
+			currentChatSession.addChatActionListener((connection, action) -> {
+				for (ScheduledConnection sc : scheduledConnections) {
+					if (sc.connection == connection) {
+						// выполняем onChatAction на чат-скрипте пользователя
+						Profile profile = sc.profile;
+						Script script = profile.getChatScript();
+						try {
+							script.invokeFunction("onChatAction", connection, action);
+						} catch (NoSuchMethodException ignored) {
+							// noop
+						} catch (Throwable t) {
+							t.printStackTrace();
+						}
+					}
+				}
+			});
 			currentChatSession.addChatConnectionCompletedListener(connection -> {
 				for (ScheduledConnection sc : scheduledConnections) {
-					if (sc.connection == connection && !sc.messageSend) {
-						sc.messageSend = true;
-						connection.sendMessage(sc.scheduledJoinMessage);
+					if (sc.connection == connection && !sc.scriptExecuted) {
+						sc.scriptExecuted = true;
+						// выполняем onConnected на чат-скрипте пользователя
+						Profile profile = sc.profile;
+						Script script = profile.getChatScript();
+						try {
+							script.clearBindings();
+							script.putBinding("_context", context);
+							script.putBinding("_chatConnection", connection);
+							script.recompile();
+							try {
+								script.invokeFunction("onConnected", connection);
+							} catch (Throwable t) {
+								DialogUtils.showError("Не могу выполнить скрипт-метод onConnected у "
+										+ profile, t, true);
+							}
+						} catch (Throwable t) {
+							DialogUtils.showError("Не могу выполнить скрипт у " + profile,
+									t, true);
+						}
 						save();
 					}
 				}
@@ -232,9 +267,8 @@ public class ScheduledConnectionsHandler implements BotHandler {
 		private String username = "";
 		private transient Profile profile;
 		private long scheduledJoinTime;
-		private String scheduledJoinMessage = "";
 		private String chatLink = "";
-		private boolean messageSend = false;
+		private boolean scriptExecuted = false;
 
 		public void setHandler(ScheduledConnectionsHandler handler) {
 			this.handler = handler;
@@ -276,7 +310,6 @@ public class ScheduledConnectionsHandler implements BotHandler {
 			username = "";
 			chatLink = "";
 			scheduledJoinTime = 0;
-			scheduledJoinMessage = "";
 			if (connection != null) {
 				connection.destroy();
 				connection = null;

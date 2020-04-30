@@ -15,6 +15,7 @@
  */
 package knoblul.eosvstubot.gui.profile;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.api.profile.ProfileManager;
@@ -26,6 +27,10 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 
@@ -37,6 +42,8 @@ import java.util.List;
  * @author Knoblul
  */
 public class ProfileTable extends JComponent {
+	private static String defaultChatJoinScriptContent;
+
 	private final ProfileManager profileManager;
 
 	private JTable table;
@@ -118,6 +125,12 @@ public class ProfileTable extends JComponent {
 		}
 	}
 
+	public void refresh() {
+		tableModel.fireTableStructureChanged();
+		table.revalidate();
+		table.clearSelection();
+	}
+
 	private void fill() {
 		editDialog = new ProfileEditDialog();
 		table = new JTable();
@@ -176,5 +189,23 @@ public class ProfileTable extends JComponent {
 		removeButton.addActionListener(this::removeProfiles);
 
 		onUserSelected(new ListSelectionEvent(table, -1, -1, false));
+	}
+
+	public static String getDefaultChatJoinScriptContent() {
+		if (defaultChatJoinScriptContent == null) {
+			InputStream in = ProfileEditDialog.class.getResourceAsStream("/default_chat_join.js");
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, Charsets.UTF_8))) {
+				StringBuilder sb = new StringBuilder();
+				String ln;
+				while ((ln = reader.readLine()) != null) {
+					sb.append(ln).append("\n");
+				}
+				defaultChatJoinScriptContent = sb.toString();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		return defaultChatJoinScriptContent;
 	}
 }

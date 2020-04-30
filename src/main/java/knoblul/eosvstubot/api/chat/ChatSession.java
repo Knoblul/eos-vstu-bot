@@ -76,6 +76,12 @@ public class ChatSession {
 	private int maximumReconnectAttempts;
 
 	/**
+	 * Флаг, запрещающий чат-подключениям отправлять сообщения
+	 * в чат.
+	 */
+	private boolean messageSendingDisabled;
+
+	/**
 	 * Флаг, сигнализирующий контексту о том, что данная чат-сессия
 	 * является недействительной и подлежит удалению.
 	 */
@@ -101,6 +107,14 @@ public class ChatSession {
 
 	public void setMaximumReconnectAttempts(int maximumReconnectAttempts) {
 		this.maximumReconnectAttempts = maximumReconnectAttempts;
+	}
+
+	public boolean isMessageSendingDisabled() {
+		return messageSendingDisabled;
+	}
+
+	public void setMessageSendingDisabled(boolean messageSendingDisabled) {
+		this.messageSendingDisabled = messageSendingDisabled;
 	}
 
 	/**

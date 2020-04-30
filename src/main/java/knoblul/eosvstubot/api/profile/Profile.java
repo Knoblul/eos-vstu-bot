@@ -15,7 +15,7 @@
  */
 package knoblul.eosvstubot.api.profile;
 
-import com.google.common.base.Splitter;
+import knoblul.eosvstubot.api.scripting.Script;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
@@ -29,8 +29,6 @@ import java.util.Arrays;
  * @author Knoblul
  */
 public class Profile {
-	public static final String CHAT_PHRASES_DELIMITER = "|";
-	public static final String[] DEFAULT_CHAT_PHRASES = new String[] { "+" };
 	public static final int DEFAULT_MAXIMUM_LATE_TIME = 15*60*1000; // 15 минут
 
 	/**
@@ -44,12 +42,14 @@ public class Profile {
 	private String password = "";
 
 	/**
-	 * Фразы, которые бот должен говорить в чате от лица этого профиля.
+	 * Скрипт, который исполняется когда бот успешно
+	 * входит в чат от имени профиля.
 	 */
-	private String[] chatPhrases = DEFAULT_CHAT_PHRASES;
+	private Script chatScript = new Script();
 
 	/**
-	 * Максимальное время, на которое бот может "опоздать"
+	 * Максимальное время, на которое бот может "опоздать" в
+	 * чат.
 	 */
 	private long maximumLateTime = DEFAULT_MAXIMUM_LATE_TIME;
 
@@ -124,12 +124,12 @@ public class Profile {
 		this.profileId = profileId;
 	}
 
-	/**
-	 * @return масив, хранящий фразы, которые бот должен
-	 * говорить в чате от лица этого профиля.
-	 */
-	public String[] getChatPhrases() {
-		return chatPhrases;
+	public Script getChatScript() {
+		return chatScript;
+	}
+
+	public void setChatScript(Script chatScript) {
+		this.chatScript = chatScript;
 	}
 
 	public long getMaximumLateTime() {
@@ -142,23 +142,6 @@ public class Profile {
 
 	public String[] getCookies() {
 		return cookies;
-	}
-
-	/**
-	 * @see #getChatPhrases()
-	 * @return фразы в формате строки, разделеные {@link #CHAT_PHRASES_DELIMITER}
-	 */
-	public String getChatPhrasesAsString() {
-		return String.join(CHAT_PHRASES_DELIMITER, chatPhrases);
-	}
-
-	/**
-	 * Создает массив фраз из указанной строки
-	 * @param chatPhrases фразы в формате строки, разделеные {@link #CHAT_PHRASES_DELIMITER}
-	 */
-	public void setChatPhrasesFromString(String chatPhrases) {
-		this.chatPhrases = Splitter.on(CHAT_PHRASES_DELIMITER).trimResults()
-				.splitToList(chatPhrases).toArray(new String[0]);
 	}
 
 	/**

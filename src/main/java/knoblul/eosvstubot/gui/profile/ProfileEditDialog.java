@@ -18,9 +18,11 @@ package knoblul.eosvstubot.gui.profile;
 import knoblul.eosvstubot.api.profile.Profile;
 import knoblul.eosvstubot.api.profile.ProfileManager;
 import knoblul.eosvstubot.gui.BotMainWindow;
+import knoblul.eosvstubot.gui.scripting.ScriptEditorDialog;
 import knoblul.eosvstubot.utils.swing.DialogUtils;
 import knoblul.eosvstubot.utils.swing.TimeChooser;
 
+import javax.script.ScriptException;
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
@@ -33,10 +35,12 @@ import java.io.IOException;
  * @author Knoblul
  */
 class ProfileEditDialog extends JComponent {
+	private static ScriptEditorDialog scriptEditorDialog = new ScriptEditorDialog();
+
 	private JTextField usernameField;
 	private JPasswordField passwordField;
-	private JTextField chatPhrasesField;
 	private TimeChooser lateTimeChooser;
+	private String chatJoinScriptContent;
 
 	ProfileEditDialog() {
 		fill();
@@ -73,13 +77,18 @@ class ProfileEditDialog extends JComponent {
 
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.anchor = GridBagConstraints.WEST;
-		add(new JLabel("Фразы"), gbc);
+		add(new JLabel("Чат-скрипт"), gbc);
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.weightx = 1;
-		add(chatPhrasesField = new JTextField(20), gbc);
-		chatPhrasesField.setToolTipText("Рандомные фразы, которые будет говорить бот" +
-				" в чате. Разделяются с помощью '" + Profile.CHAT_PHRASES_DELIMITER + "'. ");
+		JButton scriptEditButton;
+		add(scriptEditButton = new JButton("Редактировать..."), gbc);
+		scriptEditButton.addActionListener((e) -> {
+			scriptEditorDialog.setEditingScript(chatJoinScriptContent);
+			scriptEditorDialog.setVisible(true);
+			chatJoinScriptContent = scriptEditorDialog.getEditingScript();
+		});
+		scriptEditButton.setToolTipText("Чат скрипт нужен для детальной настройки поведения бота в чате от имени профиля.");
 		gbc.weightx = 0;
 		gbc.gridy++;
 
@@ -95,28 +104,16 @@ class ProfileEditDialog extends JComponent {
 		gbc.gridy++;
 	}
 
-	String getUsername() {
-		return usernameField.getText().trim();
-	}
-
-	String getPassword() {
-		return new String(passwordField.getPassword());
-	}
-
-	String getChatPhrases() {
-		return chatPhrasesField.getText().trim();
-	}
-
 	void showDialog(ProfileManager profileManager, Profile editingProfile, Runnable swingUpdateCallback) {
 		if (editingProfile != null) {
 			usernameField.setText(editingProfile.getUsername());
 			passwordField.setText(editingProfile.getPassword());
-			chatPhrasesField.setText(editingProfile.getChatPhrasesAsString());
+			chatJoinScriptContent = editingProfile.getChatScript().getContent();
 			lateTimeChooser.setTimeMillis(editingProfile.getMaximumLateTime());
 		} else {
 			usernameField.setText("");
 			passwordField.setText("");
-			chatPhrasesField.setText(String.join(Profile.CHAT_PHRASES_DELIMITER, Profile.DEFAULT_CHAT_PHRASES));
+			chatJoinScriptContent = ProfileTable.getDefaultChatJoinScriptContent();
 			lateTimeChooser.setTimeMillis(Profile.DEFAULT_MAXIMUM_LATE_TIME);
 		}
 
@@ -124,9 +121,8 @@ class ProfileEditDialog extends JComponent {
 		while (JOptionPane.showConfirmDialog(BotMainWindow.instance, this, title,
 				JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
 
-			String username = getUsername();
-			String password = getPassword();
-			String chatPhrases = getChatPhrases();
+			String username = usernameField.getText().trim();
+			String password = new String(passwordField.getPassword());
 			long lateTime = lateTimeChooser.getTimeMillis();
 			if (!username.isEmpty() && !password.isEmpty()) {
 				Profile listedProfile = profileManager.getProfile(username);
@@ -152,14 +148,24 @@ class ProfileEditDialog extends JComponent {
 						needsLogin = true;
 					}
 
-					profile.setChatPhrasesFromString(chatPhrases);
+					String prevScriptContent = profile.getChatScript().getContent();
+					profile.getChatScript().setContent(chatJoinScriptContent);
+					if (!prevScriptContent.equals(chatJoinScriptContent)) {
+						try {
+							profile.getChatScript().recompile();
+						} catch (ScriptException e) {
+							e.printStackTrace();
+						}
+					}
+
 					profile.setMaximumLateTime(lateTime);
 
 					if (needsLogin) {
 						try {
 							profileManager.loginProfile(profile);
 						} catch (IOException e) {
-							DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.", e, true);
+							DialogUtils.showError("Ошибка входа. Пожалуйста, повторите попытку.",
+									e, true);
 						}
 					}
 

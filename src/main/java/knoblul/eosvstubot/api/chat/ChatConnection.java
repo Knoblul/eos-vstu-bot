@@ -327,18 +327,26 @@ public class ChatConnection {
 	 * @param message сообщение
 	 */
 	public void sendMessage(@Nullable String message) {
+		if (Strings.isNullOrEmpty(message)) {
+			return;
+		}
+
+		if (invalid || !configurationCompleted) {
+			Log.warn("Could not send chat message as %s, because connection is not configured yet",
+					profile.getUsername());
+			return;
+		}
+
+		Log.info("%s sended message '%s' to chat", profile, message);
+
+		// пропускаем отправку сообщения если чат-сессия
+		// запрещает отправлять сообщения в чат,
+		if (chatSession.isMessageSendingDisabled()) {
+			return;
+		}
+
 		BotContext context = chatSession.getContext();
 		context.invokeMainThreadCommand(() -> {
-			if (Strings.isNullOrEmpty(message)) {
-				return;
-			}
-
-			if (invalid || !configurationCompleted) {
-				Log.warn("Could not send chat message as %s, because connection is not configured yet",
-						profile.getUsername());
-				return;
-			}
-
 			// отправляем асинхронный запрос на ajax-скрипт чата
 			Map<String, String> params = Maps.newHashMap();
 			params.put("action", "chat");

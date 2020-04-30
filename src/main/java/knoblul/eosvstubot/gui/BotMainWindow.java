@@ -48,6 +48,7 @@ public class BotMainWindow extends JFrame implements BotHandler {
 	private ScheduleManagerComponent scheduleManagerComponent;
 	private JComponent consoleComponent;
 	private JComponent chatComponent;
+	private ProfileTable profileTable;
 
 	@SuppressWarnings("unused")
 	public BotMainWindow(@NotNull BotContext context) {
@@ -83,7 +84,7 @@ public class BotMainWindow extends JFrame implements BotHandler {
 	private void fill() {
 		setLayout(new BorderLayout());
 		tabs = new JTabbedPane();
-		tabs.addTab("Пользователи", new ProfileTable(context.getProfileManager()));
+		tabs.addTab("Пользователи", profileTable = new ProfileTable(context.getProfileManager()));
 		tabs.addTab("Расписание", scheduleManagerComponent = new ScheduleManagerComponent(context.getLessonsManager()));
 		tabs.addTab("Чаты", chatComponent = new ChatComponent(scheduledConnectionsHandler));
 		tabs.addTab("Консоль", consoleComponent = new JScrollPane(TextPaneAppender.consoleComponent,
@@ -132,6 +133,12 @@ public class BotMainWindow extends JFrame implements BotHandler {
 				}
 			} catch (Throwable ignored) { }
 		});
+	}
+
+	public void updateProfileTable() {
+		if (profileTable != null) {
+			profileTable.refresh();
+		}
 	}
 
 	@Override

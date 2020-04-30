@@ -101,6 +101,7 @@ public class ChatComponent extends JComponent {
 						chatControls.fireUsersUpdated();
 					}
 					chatTitle.setText(connection.getConfiguration().getTitle());
+					BotMainWindow.instance.updateProfileTable();
 				});
 			}
 
@@ -124,6 +125,7 @@ public class ChatComponent extends JComponent {
 						}
 					}
 					setEnabled(stillConnected);
+					BotMainWindow.instance.updateProfileTable();
 				});
 			}
 		});
