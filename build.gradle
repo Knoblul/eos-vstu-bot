@@ -3,7 +3,7 @@ plugins {
 }
 
 group 'knoblul.eosvstubot'
-version '0.1.2'
+version '0.1.2-s-hf1'
 
 compileJava.options.encoding = 'UTF-8'
 

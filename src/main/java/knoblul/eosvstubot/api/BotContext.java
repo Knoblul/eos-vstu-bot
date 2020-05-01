@@ -59,7 +59,6 @@ import org.jsoup.nodes.Document;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -477,11 +476,7 @@ public class BotContext {
 
 		HttpPost request = new HttpPost(uri);
 		request.setConfig(config);
-		try {
-			request.setEntity(new UrlEncodedFormEntity(encodedParams));
-		} catch (UnsupportedEncodingException e) {
-			throw new RuntimeException(e);
-		}
+		request.setEntity(new UrlEncodedFormEntity(encodedParams, Charsets.UTF_8)); // фикс отправки русских символов
 		return request;
 	}
 
